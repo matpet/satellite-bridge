@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+.venv/
+.DS_Store
+build/
+dist/
+tmp/
+release-assets/
+.bridge-control.sock
+.instance.lock
+*.log
+*.jsonl
+*-live-test.json
+*-diagnostic.json
+

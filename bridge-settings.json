@@ -1,0 +1,37 @@
+{
+  "presets": [
+    {
+      "id": "8c0cec64-c001-4cfd-aea3-ae0c5d270809",
+      "name": "Digital",
+      "rx_mhz": "433.540000",
+      "tx_mhz": "144.040000",
+      "rx_mode": "USB-D",
+      "tx_mode": "USB-D"
+    },
+    {
+      "id": "3f2f9dec-3bf2-4852-9c3b-76d557ca044d",
+      "name": "SSB HB Amsat",
+      "rx_mhz": "433.740000",
+      "tx_mhz": "144.240000",
+      "rx_mode": "USB",
+      "tx_mode": "USB"
+    },
+    {
+      "id": "6a21af49-9aeb-48d6-86a0-6b72ac9f6879",
+      "name": "SSB DX",
+      "rx_mhz": "433.900000",
+      "tx_mhz": "144.400000",
+      "rx_mode": "USB",
+      "tx_mode": "USB"
+    },
+    {
+      "id": "9f47288a-4118-44c8-a7f2-6c4996e8f6ec",
+      "name": "CW",
+      "rx_mhz": "433.512000",
+      "tx_mhz": "144.012000",
+      "rx_mode": "CW",
+      "tx_mode": "CW"
+    }
+  ],
+  "home_id": "8c0cec64-c001-4cfd-aea3-ae0c5d270809"
+}
