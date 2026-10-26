@@ -2,11 +2,21 @@
 
 ## Local regression suite
 
-Version 1.0.6 passes **118 local tests** across `test_bridge`, `test_app_packaging`, `test_native_control`, `test_virtual_split` and `test_receiver_profiles`. These use simulated transports/control models and temporary local sockets. Passing them does not establish RF performance or compatibility with an arbitrary station.
+Version 1.0.7 passes **131 local tests** across `test_bridge`, `test_app_packaging`, `test_native_control`, `test_virtual_split`, `test_receiver_profiles` and `test_band_transition`. These use simulated transports/control models and temporary local sockets. Passing them does not establish RF performance or compatibility with an arbitrary station.
 
 The suite includes independent RX/TX command framing, blocked MacDoppler packets, stale and rejected report handling, startup Digital selection, saved-pair preservation, PTT gating, RX-only filter targeting, optimistic feedback rejection, no frequency retry on mismatch, and no command replay after a post-tuning power-read failure.
 
 Ten compatibility regressions cover full and compact VFO labels, missing Data fields, reordered readouts, placeholder modes, live field refresh, RX/TX separation, selected-VFO mode fallback and ambiguous indicators.
+
+## Version 1.0.7 band reversal and continuous tracking - 26 October 2026
+
+Actual AO-7 reports requested 2 m RX and 70 cm TX while the radio retained the QO-100 arrangement of 70 cm RX and 2 m TX. Ordinary RX setters could not cross into the band occupied by TX. A verified RUMlogNG Main/Sub exchange allowed the installed 1.0.6 app to apply 42 further pairs, before a separate panel-view restoration timeout stopped output.
+
+The repair exchanges conflicting bands before tuning, verifies the exchange and limits recalled TX power during transition. It refreshes AX readout elements, retains control of VFO selection during the stream and avoids repeated RX-filter work on unchanged frequency-only reports. Mode/band changes and reported filter mismatches still apply the RX rule.
+
+A controlled real-radio replay then verified automatic return to QO-100, transition to AO-7's band arrangement and 60 consecutive independently verified RX/TX pairs with CW RX filter 2 and 80% power. It returned to QO-100 at RX 433.512000 / TX 144.012000 MHz, both CW, SAT on, RX filter 2 and 4% power. Maximum application time was 11.154 seconds including initial setup; the mean was 4.114 seconds per pair on this 19200-baud station. The bridge retains the newest pending report during slower control/readback work. This was controlled replay, not a new live pass or RF measurement.
+
+Installed 1.0.7 build 11 also passed three labeled AO-7 validation packets on the normal UDP listener and automatically returned to the current QO-100 CW pair at 4%. Its own Accessibility access was renewed and verified. The installed executable matches the packaged build.
 
 ## Version 1.0.6 combined source check - 26 October 2026
 

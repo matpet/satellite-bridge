@@ -656,12 +656,20 @@ class Bridge:
                         raise RuntimeError("RX filter control is unavailable; tuning is blocked")
                     if source == "qo100":
                         self._check_power(force=True)
+                    previous_pair = self.transport.last_pair
+                    filter_needed = force or previous_pair is None or (
+                        previous_pair.rx_mode != pair.rx_mode or
+                        dial_band(previous_pair.rx_hz) != dial_band(pair.rx_hz))
+                    with self.lock:
+                        reported_filter = (self.radio or {}).get("rx_filter")
+                        filter_needed = filter_needed or self.rx_filter_number != filter_number or (
+                            reported_filter is not None and reported_filter != filter_number)
                     self.transport.apply(pair, force=force or self.transport.last_pair is None)
                     commands_sent = True
                     with self.lock:
                         self.last_sent, self.last_sent_source, self.last_sent_at = pair, source, utc()
                     confirmed = True
-                    if filter_number is not None:
+                    if filter_number is not None and filter_needed:
                         if self.rx_filter(pair.rx_mode, filter_number) != filter_number:
                             raise RuntimeError("RX filter did not verify")
                     if source == "qo100":

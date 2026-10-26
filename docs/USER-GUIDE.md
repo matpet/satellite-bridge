@@ -1,4 +1,4 @@
-# User guide - version 1.0.6
+# User guide - version 1.0.7
 
 ## 1. Requirements and connections
 
@@ -29,7 +29,7 @@ The downloadable app is ad-hoc signed, not Developer ID signed or notarized. A d
 
 ## 3. QO-100 operation
 
-SAT mode remains enabled so native NOR/REV manual dial tracking remains available. The bridge stops alternating panel polling while selecting Main/RX and Sub/TX explicitly. For each side it sends one ordinary frequency command and uses the selected-VFO mode buttons, then verifies that side before restoring the previous control view and polling. It avoids the Commander TX setters that failed to update the SAT Sub VFO with RUMlogNG 6.6.1.
+SAT mode remains enabled so native NOR/REV manual dial tracking remains available. The bridge stops alternating panel polling while selecting Main/RX and Sub/TX explicitly. If the requested RX band is occupied by TX, it exchanges Main/Sub first and verifies both bands before tuning. This handles QO-100 to AO-7 and the reverse transition. For each side it sends one ordinary frequency command and uses the selected-VFO mode buttons, then verifies that side before restoring the previous control view and polling. It avoids the Commander TX setters that failed to update the SAT Sub VFO with RUMlogNG 6.6.1.
 
 Click a row in the Operations list. This selects QO-100 authority, cancels pending MacDoppler work, and sends one batch containing the pair's RX frequency, TX frequency, RX mode and TX mode.
 
@@ -58,13 +58,13 @@ QO-100 RX has ATT enabled and internal/external preamps disabled. The receiver p
 
 Use the Virtual split selector: USB/USB-D offers **Off, +5, +10, +15 kHz**; CW/CW-R offers **Off, +1, +2, +3 kHz**. Enabling saves the actual TX frequency, including manual tuning since the preset. Each offset is relative to that same base; choices do not stack. **Off restores the saved TX base exactly**, even after further manual tuning. RX frequency, modes and filters are not changed. Release PTT before changing split. A new preset or MacDoppler selection clears split state and supplies its own pair. Split state is per session; normal startup still applies Digital.
 
-![Satellite Bridge 1.0.6 Operations window with QO-100 CW selected, RX filter 2 and the +1/+2/+3 kHz virtual-split controls](images/satellite-bridge-1.0.6.png)
+![Satellite Bridge 1.0.7 Operations window with QO-100 CW selected, RX filter 2 and the +1/+2/+3 kHz virtual-split controls](images/satellite-bridge-1.0.7.png)
 
-*Version 1.0.6 build 10: CW selected, virtual split Off and reported power 4%.*
+*Version 1.0.7 build 11: CW selected, virtual split Off and reported power 4%.*
 
 ## 4. MacDoppler operation
 
-Use **MacDoppler's tuning aids** during passes. The UDP driver does not supply native radio-dial tracking. The bridge uses explicit Main/RX and Sub/TX control with SAT on and holds alternating polling off across the stream. Returning to QO-100 restores the earlier polling setting.
+Use **MacDoppler's tuning aids** during passes. The UDP driver does not supply native radio-dial tracking. The bridge uses explicit Main/RX and Sub/TX control with SAT on and holds alternating polling off across the stream. Returning to QO-100 restores the earlier panel view and polling setting. During the stream, the bridge keeps control of VFO selection and reads current panel elements. Frequency-only updates reuse the verified RX filter; mode/band changes and a reported filter mismatch reapply its rule.
 
 Click **MacDoppler** to give its reports control. The selected source button has a checkmark and colored appearance.
 

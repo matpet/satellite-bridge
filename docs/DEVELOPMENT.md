@@ -23,10 +23,10 @@ To run the source UI: `python bridge_app.py`. Running the real UI can select Dig
 ## Tests
 
 ```sh
-python -m unittest test_bridge test_app_packaging test_native_control test_virtual_split test_receiver_profiles -v
+python -m unittest test_bridge test_app_packaging test_native_control test_virtual_split test_receiver_profiles test_band_transition -v
 ```
 
-The 118 tests exercise parsers, independent setters, source arbitration, TCP frames, PTT restrictions, persistence, startup, native-control models, readback, one-shot behavior and power recovery. Compatibility cases cover both VFO label variants, reordered or omitted fields, placeholder modes, selected-VFO mode fallback and ambiguous indicators. They bind temporary loopback sockets and do not connect to the IC-9700. The test modules import macOS native frameworks, so this test command targets macOS.
+The 131 tests exercise parsers, independent setters, source arbitration, TCP frames, PTT restrictions, persistence, startup, native-control models, readback, one-shot behavior and power recovery. Compatibility cases cover both VFO label variants, reordered or omitted fields, placeholder modes, selected-VFO mode fallback and ambiguous indicators. They bind temporary loopback sockets and do not connect to the IC-9700. The test modules import macOS native frameworks, so this test command targets macOS.
 
 ## Source map
 
@@ -65,3 +65,5 @@ The PDF can be rebuilt with `python tools/build_guide.py` after installing `requ
 RX filters apply to both sources: CW/CW-R selects 2; USB/USB-D selects 1. Main/RX must be the only selected VFO before a filter click. Receiver settings use three exact macros in unused slots: amp off, internal only, or internal plus external 70 cm (including connector permission 0094). Payloads contain no PTT, frequency, CW or voice commands and currently use default address A2.
 
 Virtual split stores the actual TX base on first activation, under the dispatch lock. A choice changes only TX; Off restores the base. Failed verification retains it for explicit recovery. New source/preset selections clear it without an intermediate old-source restore. There is no periodic split enforcement.
+
+A requested RX band already occupied by Sub/TX requires one native `M / S` exchange before frequency setters. Band readback verifies the exchange; recalled TX power is held within 5% before the source default follows target verification. The [Icom CI-V reference](https://www.icomfrance.com/uploads/files/produit/not-IC-9700_ENG_CI-V_3a-en.pdf) documents Main/Sub exchange as command 07 B0; the bridge invokes RUMlogNG's panel button, retaining its sole CAT ownership. Continuous output restores the original view only on exit. Readout children are enumerated afresh because RUMlogNG can replace AX elements. RX-filter work is skipped on ordinary frequency-only updates unless a reported mismatch requires it.

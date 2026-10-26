@@ -1,6 +1,6 @@
-# Planned functionality - not in 1.0.6
+# Planned functionality - not in 1.0.7
 
-Version 1.0.6 is a public preview. The following future requirements are not promises about the downloadable app.
+Version 1.0.7 is a public preview. The following future requirements are not promises about the downloadable app.
 
 ## Current operating decision - 26 October 2026
 

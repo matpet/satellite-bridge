@@ -4,15 +4,15 @@
 
 A small macOS app for keeping QO-100 operation and MacDoppler-controlled LEO operation on the same IC-9700, while **RUMlogNG remains the sole CAT controller connected to the radio**.
 
-**Public preview: 1.0.6 build 10 · Intel macOS · MIT license**
+**Public preview: 1.0.7 build 11 · Intel macOS · MIT license**
 
-[Download the app](https://github.com/matpet/satellite-bridge/releases/tag/v1.0.6) · [User guide](docs/USER-GUIDE.md) · [Why this app exists](docs/WHY.md) · [PDF guide](output/pdf/Satellite-Bridge-Guide-1.0.6.pdf) · [Planned features](docs/ROADMAP.md)
+[Download the app](https://github.com/matpet/satellite-bridge/releases/tag/v1.0.7) · [User guide](docs/USER-GUIDE.md) · [Why this app exists](docs/WHY.md) · [PDF guide](output/pdf/Satellite-Bridge-Guide-1.0.7.pdf) · [Planned features](docs/ROADMAP.md)
 
-![Satellite Bridge 1.0.6 showing QO-100 CW selected, all four saved pairs, virtual split Off and +1/+2/+3 kHz choices, RX filter 2, and reported RF power 4%](docs/images/satellite-bridge-1.0.6.png)
+![Satellite Bridge 1.0.7 showing QO-100 CW selected, all four saved pairs, virtual split Off and +1/+2/+3 kHz choices, RX filter 2, and reported RF power 4%](docs/images/satellite-bridge-1.0.7.png)
 
-*Actual version 1.0.6 build 10 on the original station: QO-100 CW, split Off, RX filter 2 and 4% reported power. The packet feed is open but empty in this capture; counters include earlier messages.*
+*Actual version 1.0.7 build 11 on the original station: QO-100 CW, split Off, RX filter 2 and 4% reported power. No MacDoppler packets had arrived in this launch at capture time.*
 
-Version 1.0.6 repairs selected-VFO control with RUMlogNG 6.6.1 and adds panel-based TX CTCSS, source-specific receiver/power settings and QO-100 virtual split. SAT remains enabled. QO-100 accepts later radio-dial tuning; MacDoppler operation uses its own tuning aids and UDP reports. After an update, macOS may require removing and re-adding Satellite Bridge in Accessibility. See the [changelog](CHANGELOG.md).
+Version 1.0.7 adds automatic Main/Sub band exchange for Mode B satellites such as AO-7 and repairs continuous panel selection. It retains the RUMlogNG 6.6.1 control, TX CTCSS, receiver/power settings and QO-100 virtual split introduced in 1.0.6. SAT remains enabled. QO-100 accepts later radio-dial tuning; MacDoppler operation uses its own tuning aids and UDP reports. After an update, macOS may require removing and re-adding Satellite Bridge in Accessibility. See the [changelog](CHANGELOG.md).
 
 ## Why I wanted this app
 
@@ -36,7 +36,7 @@ flowchart LR
 
 The bridge does not open a serial port. MacDoppler uses its UDP Broadcast radio driver, not a second direct CAT connection.
 
-## What 1.0.6 does
+## What 1.0.7 does
 
 | Source | Tuning behavior |
 | --- | --- |
@@ -71,7 +71,7 @@ See the [full setup and operating guide](docs/USER-GUIDE.md). The release is loc
 ## Current limitations
 
 - The backend explicitly selects Main/RX and Sub/TX in SAT mode; it uses the ordinary frequency setter and panel mode controls. It does not use RUMlogNG 6.6.x's non-SAT tracking path.
-- During continuous MacDoppler output, alternating Toggle polling is held off so it cannot change the selected VFO. QO-100 return/app close restores the pre-tracking setting. QO-100 background feedback still enables Toggle.
+- During continuous MacDoppler output, alternating Toggle polling is held off so it cannot change the selected VFO. QO-100 return/app close restores the pre-tracking panel view and polling setting. QO-100 background feedback still enables Toggle.
 - UDP does not provide MacDoppler radio-dial tracking; use MacDoppler's tuning controls during passes. Radio-dial operation is preserved in QO-100.
 - Readback comes from RUMlogNG's panel, not an independent radio connection. A requested value can appear before a later CAT poll reports the previous value. Verification does not retry the tuning command.
 - Missing TX modes are omitted; missing frequencies say waiting and old feedback is labelled stale.
@@ -85,12 +85,12 @@ See the [full setup and operating guide](docs/USER-GUIDE.md). The release is loc
 The app uses Python's standard library, Tk, and native macOS Accessibility calls. Building the bundled app requires Python 3.12+ with Tk 9 and PyInstaller 6.22.3.
 
 ```sh
-python3 -m unittest test_bridge test_app_packaging test_native_control test_virtual_split test_receiver_profiles -v
+python3 -m unittest test_bridge test_app_packaging test_native_control test_virtual_split test_receiver_profiles test_band_transition -v
 python3 -m pip install -r requirements-build.txt
 python3 build_macos_app.py
 ```
 
-The **118 local tests** use simulated endpoints. Separately, the full source pipeline applied 13 UDP updates to the real radio, including captured FO-29 reports, RX filter transitions and TX tone changes. It verified 80% MacDoppler defaults, both virtual-split ranges, exact base restoration and preserved QO-100 manual tuning. These are control/readback checks, not an over-the-air test. Installed-build verification is recorded separately. See [development](docs/DEVELOPMENT.md) and [validation](docs/VALIDATION.md) for the evidence and its limits.
+The **131 local tests** use simulated endpoints. The 1.0.7 repair also verified automatic QO-100/AO-7 band reversals and 60 consecutive pairs through the real radio, with 80% during tracking and 4% after QO-100 restoration. Separately, the full source pipeline applied 13 UDP updates to the real radio, including captured FO-29 reports, RX filter transitions and TX tone changes. It verified 80% MacDoppler defaults, both virtual-split ranges, exact base restoration and preserved QO-100 manual tuning. These are control/readback checks, not an over-the-air test. Installed-build verification is recorded separately. See [development](docs/DEVELOPMENT.md) and [validation](docs/VALIDATION.md) for the evidence and its limits.
 
 Settings and logs live in `~/Library/Application Support/Satellite Bridge/`, outside the app bundle. Public source and release assets exclude local radio logs, packet captures, account details and machine-specific test artifacts.
 

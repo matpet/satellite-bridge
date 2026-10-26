@@ -58,6 +58,7 @@ class RumlogPanel:
         self._groups, self._buttons, self._texts = {}, {}, {}
         self._power = None
         self._polling_before_tracking = None
+        self._view_before_tracking = None
 
     def invalidate(self):
         self._app = self._window = self._power = None
@@ -124,9 +125,10 @@ class RumlogPanel:
         self.button(group, name).press()
 
     def fields(self, group):
-        if group not in self._texts:
-            self._texts[group] = [c for c in self.group(group).children if c.get("AXRole") == "AXStaticText"]
-        return [c.get("AXValue", "") for c in self._texts[group]]
+        # RUMlogNG replaces readout elements when a VFO/band changes. Keeping
+        # their old AX references can report an empty or other-VFO frequency.
+        texts = [c for c in self.group(group).children if c.get("AXRole") == "AXStaticText"]
+        return [c.get("AXValue", "") for c in texts]
 
     def selected_mode(self, band):
         other = "Sub" if band == "Main" else "Main"
@@ -189,10 +191,13 @@ class RumlogPanel:
             previous = self._polling_before_tracking
             if previous is None:
                 return
+            if self._view_before_tracking is not None:
+                self.select_vfo(self._view_before_tracking)
             if previous and self.description("Miscellaneous", "Toggle") != ON:
                 self.press("Miscellaneous", "Toggle")
                 self.wait(lambda: self.description("Miscellaneous", "Toggle") == ON, "restore alternating polling")
             self._polling_before_tracking = None
+            self._view_before_tracking = None
 
     def power_slider(self):
         self.require_session()
@@ -411,6 +416,45 @@ class RumlogPanel:
         check_target()
         return hz
 
+    def prepare_satellite_bands(self, pair, check_rx, log, hold_power=False):
+        """Free a requested RX band that is currently occupied by Sub/TX.
+
+        The IC-9700 cannot put both VFOs on the same band. A frequency setter
+        alone therefore cannot reverse a QO-100 pair for a Mode B satellite.
+        Exchange Main/Sub once, verify both bands, then tune the actual pair.
+        """
+        groups = (("Main", "VFO Main Band (RX)"), ("Sub", "VFO Sub Band (TX)"))
+        current = []
+        for band, group in groups:
+            if band_fields(self.fields(group))["hz"] is None:
+                check_rx()
+                self.select_vfo(band)
+                self.wait(lambda: band_fields(self.fields(group))["hz"] is not None,
+                          f"{band} frequency before band exchange")
+            current.append(dial_band(band_fields(self.fields(group))["hz"]))
+        wanted_rx = dial_band(pair.rx_hz)
+        if current[0] == wanted_rx or current[1] != wanted_rx:
+            return False
+        check_rx()
+        self.press("VFO", "M / S")
+        for (band, group), expected in zip(groups, reversed(current)):
+            check_rx()
+            self.select_vfo(band)
+            def exchanged(group=group, expected=expected):
+                hz = band_fields(self.fields(group))["hz"]
+                return hz is not None and dial_band(hz) == expected
+            self.wait(exchanged, f"{band} band after Main/Sub exchange")
+        if hold_power:
+            # A band exchange can recall a high stored TX power. Keep the
+            # transition low; the source's normal default follows only after
+            # its complete frequency/mode target has verified.
+            if self.read_power() > 5:
+                self.set_power_ceiling()
+                time.sleep(.3)
+            self.wait(lambda: self.read_power() <= 5, "power during band exchange")
+        log("sat_bands_exchanged", rx_band=current[1], tx_band=current[0])
+        return True
+
     def apply_satellite_pair(self, pair, previous, set_frequency, check_rx, log, continuous=False, rx_profile=None):
         """Apply changed satellite fields through explicitly selected SAT VFOs.
 
@@ -437,13 +481,22 @@ class RumlogPanel:
                 # VFO for the first stream update. Later updates keep it off.
                 time.sleep(.8)
             was_sub = self.description("VFO", "Sub") == ON
+            if first_tracking_update:
+                self._view_before_tracking = "Sub" if was_sub else "Main"
             verified = {}
             try:
+                if previous is None or (dial_band(previous.rx_hz), dial_band(previous.tx_hz)) != (
+                        dial_band(pair.rx_hz), dial_band(pair.tx_hz)):
+                    if self.prepare_satellite_bands(pair, check_rx, log, hold_power=rx_profile is not None):
+                        # Exchange also moves mode memories. Verify and apply
+                        # both sides, even if a requested field was unchanged.
+                        previous = None
                 for side, band, group in (("rx", "Main", "VFO Main Band (RX)"),
                                           ("tx", "Sub", "VFO Sub Band (TX)")):
                     hz, mode = getattr(pair, side + "_hz"), getattr(pair, side + "_mode")
                     frequency_changed = previous is None or getattr(previous, side + "_hz") != hz
-                    mode_changed = previous is None or getattr(previous, side + "_mode") != mode
+                    mode_changed = previous is None or getattr(previous, side + "_mode") != mode or (
+                        dial_band(getattr(previous, side + "_hz")) != dial_band(hz))
                     tone = getattr(pair, side + "_tone_hz")
                     tone_changed = tone is not None and (previous is None or mode_changed or getattr(previous, side + "_tone_hz") != tone)
                     if not (frequency_changed or mode_changed or tone_changed):
@@ -475,15 +528,17 @@ class RumlogPanel:
                     log("sat_vfo_verified", side=side, band=band, hz=verified[side + "_hz"], mode=verified[side + "_mode"])
                 return verified
             finally:
-                restore = "Sub" if was_sub else "Main"
-                if self.description("VFO", restore) != ON:
-                    self.press("VFO", restore)
-                    self.wait(lambda: self.description("VFO", restore) == ON, "restore control view")
+                # Continuous tracking owns VFO selection across updates. An
+                # extra restore after every TX write adds another CAT race.
+                restore = self._view_before_tracking or ("Sub" if was_sub else "Main")
+                if not continuous and self.description("VFO", restore) != ON:
+                    self.select_vfo(restore)
                 if restore_toggling and self.description("Miscellaneous", "Toggle") != ON:
                     self.press("Miscellaneous", "Toggle")
                     self.wait(lambda: self.description("Miscellaneous", "Toggle") == ON, "restore alternating polling")
                 if not continuous:
                     self._polling_before_tracking = None
+                    self._view_before_tracking = None
 
     def sat_on(self):
         with self.lock:

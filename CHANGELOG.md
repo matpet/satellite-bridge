@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.0.7 - 2026-10-26
+
+Repair Mode B band reversal and continuous panel selection; build 11.
+
+- Exchange Main/Sub through RUMlogNG before tuning when the requested RX band is occupied by TX. Verify both exchanged bands and hold recalled power within 5% until the new target completes.
+- Reapply mode after a band change, including when the requested mode name is unchanged.
+- Keep VFO selection under continuous tracking control; restore the original panel view when leaving tracking or closing the app.
+- Read current AX readout elements after VFO/band changes. Reuse a verified RX filter during frequency-only updates; mode/band changes or a reported filter mismatch reapply the rule.
+- Retain MacDoppler 80% after target verification, RX-only filters, receiver profiles, TX tones and QO-100 one-shot tuning/split.
+
+131 local tests pass. A real-radio controlled replay verified automatic QO-100/AO-7 band reversals and 60 consecutive frequency pairs, all with 80% readback, then returned to QO-100 at 4%. This is panel/control verification, not an over-the-air contact.
+
 ## 1.0.6 - 2026-10-26
 
 Selected-VFO tracking repair, receiver profiles, tones and QO-100 virtual split; build 10.
