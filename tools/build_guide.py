@@ -210,7 +210,7 @@ def main():
     ], [172, WIDTH - 172])
     section("What was checked")
     text("<b>118 local tests</b> cover parsing, selected VFOs, independent modes, tones, receiver macros, power, RX filters, virtual split and failure recovery. These tests use simulated endpoints. A separate controlled UDP replay applied 13 updates to the real IC-9700 through RUMlogNG, including captured FO-29 reports and TX tone transitions.")
-    text("The source check verified 80% MacDoppler defaults, RX filters without TX-filter changes, receiver profiles, both split ranges and exact base restoration. A +220 Hz QO-100 dial adjustment was preserved with no additional bridge setters. Installed-build acceptance is separate. No over-the-air QSO or external-amplifier measurement is claimed.")
+    text("The source check verified 80% MacDoppler defaults, RX filters without TX-filter changes, receiver profiles, both split ranges and exact base restoration. A +220 Hz QO-100 dial adjustment was preserved with no additional bridge setters. Installed build 10 also verified Digital/CW, SAT, 4% power and split/base restoration after Accessibility renewal. No over-the-air QSO or external-amplifier measurement is claimed.")
     section("Why stable confirmation matters")
     text("An Amsat selection briefly showed requested TX 144.240000 MHz, then RUMlogNG reported the previous 144.198770 MHz. No later bridge frequency setter appeared, and MacDoppler packets were blocked. A separate diagnostic TX setter restored 144.240000. The exact cause was not established.")
     text("The app now reports unconfirmed feedback without automatically resending frequencies. Readback is still RUMlogNG's report, not an independent CAT connection or RF measurement.")

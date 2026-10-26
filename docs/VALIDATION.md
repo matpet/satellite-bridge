@@ -18,7 +18,15 @@ MacDoppler power-default requests verified 80% after target application. QO-100 
 
 USB-D split choices produced base 144.040220 MHz plus 5/10/15 kHz, then Off restored exactly 144.040220 MHz. CW used base 144.012000 MHz plus 1/2/3 kHz, then restored exactly 144.012000 MHz. RX stayed fixed throughout each split sequence. Final restoration returned Digital; no PTT command was sent.
 
-This was controlled UDP replay and panel readback on a real radio, not a new live satellite pass or over-the-air contact. Build 10 was installed and its signature/executable verified. Its first packaged-app GUI check is pending an unlocked macOS session and any required Accessibility renewal; this source result does not substitute for that acceptance.
+This was controlled UDP replay and panel readback on a real radio, not a new live satellite pass or over-the-air contact. Installed build 10 was checked separately as described below.
+
+## Installed build 10 acceptance - 26 October 2026
+
+The installed executable matched the packaged build, and strict signature verification passed both before installation and after extracting the release ZIP. The app window displayed all four presets and the virtual-split controls. After the Mac was unlocked and Accessibility access returned, its own control socket confirmed working panel access.
+
+Digital verified RX 433.540000 MHz / TX 144.040000 MHz, both USB-D, RX filter 1, SAT on and reported power 4%. The running app then recorded TX-only +5 kHz and Off restoring exactly 144.040000 MHz with RX unchanged. CW verified RX 433.512000 MHz / TX 144.012000 MHz, both CW, RX filter 2 and 4% power. Observed CW split operations included +1/+2 kHz and Off restoring 144.012000 MHz with RX unchanged. Receiver-profile events recorded ATT on and both preamps off for QO-100; RX-filter events recorded no TX-filter change.
+
+These installed-app checks used read-only observation of the ongoing GUI selections and journal; no extra diagnostic tuning was imposed. The larger split ranges, MacDoppler modes/tones and 80% defaults were covered by the separate controlled source replay above. No new over-the-air test is claimed.
 
 ## Historical build 8 SAT pair-control check - 26 October 2026
 

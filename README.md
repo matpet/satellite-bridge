@@ -4,9 +4,9 @@
 
 A small macOS app for keeping QO-100 operation and MacDoppler-controlled LEO operation on the same IC-9700, while **RUMlogNG remains the sole CAT controller connected to the radio**.
 
-**Release candidate: 1.0.6 build 10 · Intel macOS · MIT license**
+**Public preview: 1.0.6 build 10 · Intel macOS · MIT license**
 
-[Published downloads](https://github.com/matpet/satellite-bridge/releases) · [User guide](docs/USER-GUIDE.md) · [Why this app exists](docs/WHY.md) · [PDF guide](output/pdf/Satellite-Bridge-Guide-1.0.6.pdf) · [Planned features](docs/ROADMAP.md)
+[Download the app](https://github.com/matpet/satellite-bridge/releases/tag/v1.0.6) · [User guide](docs/USER-GUIDE.md) · [Why this app exists](docs/WHY.md) · [PDF guide](output/pdf/Satellite-Bridge-Guide-1.0.6.pdf) · [Planned features](docs/ROADMAP.md)
 
 ![Satellite Bridge 1.0.4 showing QO-100 Digital selected, all four saved pairs, independent RX/TX readback, reported RF power 4%, and MacDoppler blocked](docs/images/satellite-bridge-1.0.4.png)
 

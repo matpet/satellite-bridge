@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.0.6 - release candidate, 2026-10-26
+## 1.0.6 - 2026-10-26
 
 Selected-VFO tracking repair, receiver profiles, tones and QO-100 virtual split; build 10.
 
@@ -13,7 +13,7 @@ Selected-VFO tracking repair, receiver profiles, tones and QO-100 virtual split;
 - Add TX-only virtual split: USB/USB-D +5/+10/+15 kHz; CW/CW-R +1/+2/+3 kHz. Save the actual starting TX, avoid stacking, and restore that base on Off.
 - Preserve QO-100 manual tuning, its one-shot preset selection, RX-only filtering and 5% ceiling.
 
-118 simulated regressions pass. A controlled real-radio UDP replay verified 13 updates, tone transitions, RX filters, receiver profiles, 80% defaults, both split ranges and manual-tuning preservation. No over-the-air QSO or independent external-amplifier measurement is claimed. Installed-build acceptance is recorded separately.
+118 simulated regressions pass. A controlled real-radio UDP replay verified 13 updates, tone transitions, RX filters, receiver profiles, 80% defaults, both split ranges and manual-tuning preservation. No over-the-air QSO or independent external-amplifier measurement is claimed. Installed build 10 also verified Digital/CW, SAT, 4% power, RX filters and observed split/base restoration after Accessibility renewal.
 
 ## 1.0.5 - 2026-10-26
 
