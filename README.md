@@ -4,13 +4,15 @@
 
 A small macOS app for keeping QO-100 operation and MacDoppler-controlled LEO operation on the same IC-9700, while **RUMlogNG remains the sole CAT controller connected to the radio**.
 
-**Initial public preview: 1.0.4 · Intel macOS · MIT license**
+**Current public preview: 1.0.5 · Intel macOS · MIT license**
 
-[Download the app](https://github.com/matpet/satellite-bridge/releases/tag/v1.0.4) · [User guide](docs/USER-GUIDE.md) · [Why this app exists](docs/WHY.md) · [PDF guide](output/pdf/Satellite-Bridge-Guide-1.0.4.pdf) · [Planned features](docs/ROADMAP.md)
+[Download the app](https://github.com/matpet/satellite-bridge/releases/tag/v1.0.5) · [User guide](docs/USER-GUIDE.md) · [Why this app exists](docs/WHY.md) · [PDF guide](output/pdf/Satellite-Bridge-Guide-1.0.5.pdf) · [Planned features](docs/ROADMAP.md)
 
 ![Satellite Bridge 1.0.4 showing QO-100 Digital selected, all four saved pairs, independent RX/TX readback, reported RF power 4%, and MacDoppler blocked](docs/images/satellite-bridge-1.0.4.png)
 
 *Actual app window on the original station. The packet feed is visible; no MacDoppler packets were arriving when this screenshot was taken.*
+
+Version 1.0.5 repairs control lookup for RUMlogNG 6.6.1 layouts with compact VFO labels, omitted fields and a placeholder RX mode. It preserves one-shot tuning and the 5% QO-100 ceiling. After an update, macOS may require removing and re-adding Satellite Bridge in Accessibility. See the [changelog](CHANGELOG.md).
 
 ## Why I wanted this app
 
@@ -34,7 +36,7 @@ flowchart LR
 
 The bridge does not open a serial port. MacDoppler uses its UDP Broadcast radio driver, not a second direct CAT connection.
 
-## What 1.0.4 does
+## What 1.0.5 does
 
 | Source | Tuning behavior |
 | --- | --- |
@@ -58,19 +60,19 @@ The bridge does not open a serial port. MacDoppler uses its UDP Broadcast radio 
 3. For a different station, first launch with RUMlogNG closed and edit the example IF/dial pairs in Settings. Keep exactly one pair named **Digital**. Every later launch applies Digital automatically when access and power verification are ready.
 4. Configure the IC-9700 as **TRX2 in RUMlogNG**, using RUMlogNG's IC-9700 control panel and its TRX2 DXLab Commander server on **TCP 7400**.
 5. In MacDoppler, select **UDP Broadcast**, destination **127.0.0.1**, port **9932**, and enable Radio output.
-6. Enable Satellite Bridge in **System Settings → Privacy & Security → Accessibility**.
+6. Enable Satellite Bridge in **System Settings → Privacy & Security → Accessibility**. After replacing an existing copy, remove and re-add the installed app if access is denied despite an enabled switch. The bridge retries automatically when access returns.
 
 See the [full setup and operating guide](docs/USER-GUIDE.md). The release is locally ad-hoc signed, **not Developer ID signed or notarized**; macOS may block a downloaded copy. [Apple explains the available controls](https://support.apple.com/en-us/102445). Do not disable system-wide security protections to install it.
 
 ## Current limitations
 
-- **1.0.4 automatically enables RUMlogNG's Toggle control during feedback reads. Turning it off in the panel is not preserved.** Respecting the operator's setting is planned, but that fix is **not** in this release.
+- **1.0.5 automatically enables RUMlogNG's Toggle control during feedback reads. Turning it off in the panel is not preserved.** Respecting the operator's setting is planned, but that fix is **not** in this release.
 - Readback comes from RUMlogNG's panel, not an independent radio connection. A requested value can appear before a later CAT poll reports the previous value. Verification does not retry the tuning command.
 - Missing TX modes are omitted; missing frequencies say waiting and old feedback is labelled stale.
 - CTCSS fields in MacDoppler reports are not forwarded.
 - Terrestrial/repeater/simplex profiles and **80% default power in MacDoppler or terrestrial mode are planned, not implemented**. Switching to MacDoppler currently does not raise power.
 - The 5% guard is a software setting and monitor, not a hardware RF limiter.
-- Tested on one Intel Mac with macOS 15.7.3, RUMlogNG 6.5.1 and MacDoppler 2.48. No native Apple Silicon build is provided.
+- Tested on one Intel Mac with macOS 15.7.3. Earlier checks used RUMlogNG 6.5.1 and MacDoppler 2.48; the 1.0.5 Digital startup repair was verified with RUMlogNG 6.6.1. No new live UDP test was performed for 1.0.5, and no native Apple Silicon build is provided.
 
 ## Development and validation
 
@@ -82,7 +84,7 @@ python3 -m pip install -r requirements-build.txt
 python3 build_macos_app.py
 ```
 
-The **50 local tests** use simulated endpoints; they do not tune the IC-9700. Live tests on the original station separately confirmed independent RX/TX changes. See [development](docs/DEVELOPMENT.md) and [validation](docs/VALIDATION.md) for the evidence and its limits.
+The **60 local tests** use simulated endpoints; they do not tune the IC-9700. Earlier live tests separately confirmed independent RX/TX changes. The installed 1.0.5 app also passed a live Digital startup and one-shot command check. See [development](docs/DEVELOPMENT.md) and [validation](docs/VALIDATION.md) for the evidence and its limits.
 
 Settings and logs live in `~/Library/Application Support/Satellite Bridge/`, outside the app bundle. Public source and release assets exclude local radio logs, packet captures, account details and machine-specific test artifacts.
 

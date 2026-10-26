@@ -1,8 +1,8 @@
-# User guide - version 1.0.4
+# User guide - version 1.0.5
 
 ## 1. Requirements and connections
 
-This release supplies an Intel macOS app. It was tested on macOS 15.7.3 with RUMlogNG 6.5.1, MacDoppler 2.48, and an IC-9700 attached by USB. Compatibility with other versions and Apple Silicon has not been established.
+This release supplies an Intel macOS app. The 1.0.5 control-panel repair and Digital startup were tested on macOS 15.7.3 with RUMlogNG 6.6.1 and an IC-9700 attached by USB. Earlier UDP tests used RUMlogNG 6.5.1 and MacDoppler 2.48. Compatibility with other versions and Apple Silicon has not been established.
 
 | Connection | Setting | Purpose |
 | --- | --- | --- |
@@ -60,7 +60,7 @@ An existing report is used only if no more than eight seconds old. Otherwise, th
 
 Frequency-only corrections can continue during operator-keyed TX. A source or mode change waits for PTT release. The bridge has no PTT-on or PTT-off operation.
 
-CTCSS/tone fields are currently displayed in raw packets but not forwarded. Switching to MacDoppler does **not** automatically raise RF power in 1.0.4.
+CTCSS/tone fields are currently displayed in raw packets but not forwarded. Switching to MacDoppler does **not** automatically raise RF power in 1.0.5.
 
 ## 5. Return, pause and packet visibility
 
@@ -81,10 +81,10 @@ This guard operates on a reported software setting with feedback latency. It can
 ## 7. Feedback and known issues
 
 - The frequency line shows values read from RUMlogNG's IC-9700 panel, normally refreshed each second. It is separate from command history.
-- A requested value may briefly appear before a later CAT poll reports the previous frequency. Version 1.0.4 waits for stable feedback after selecting a QO-100 pair, but does not automatically retune when a mismatch remains.
+- A requested value may briefly appear before a later CAT poll reports the previous frequency. Version 1.0.5 waits for stable feedback after selecting a QO-100 pair, but does not automatically retune when a mismatch remains.
 - Missing frequencies say waiting. Old feedback is labelled stale. A TX mode omitted by RUMlogNG is not filled in from the requested mode.
-- **Toggle:** feedback reads in 1.0.4 automatically enable the RUMlogNG Toggle control. Manually turning Toggle off is not preserved. Removing that override is planned. Frequency/mode setters remain one-shot in QO-100; the overall feedback path is not strictly free of control actions because of this behavior.
-- The control-panel title and accessibility structure are specific to the tested RUMlogNG setup. Changes to them can break these controls.
+- **Toggle:** feedback reads in 1.0.5 automatically enable the RUMlogNG Toggle control. Manually turning Toggle off is not preserved. Removing that override is planned. Frequency/mode setters remain one-shot in QO-100; the overall feedback path is not strictly free of control actions because of this behavior.
+- Both full and compact Main/RX and Sub/TX group labels are supported. Frequency, mode and filter fields are identified by content. A placeholder mode can be read from the mode buttons only when their VFO is selected unambiguously; otherwise it remains unknown. Other control-panel changes can still break these controls.
 - Ad-hoc-signed executable updates can invalidate Accessibility permission. If access is denied despite an enabled switch, remove the app's entry, re-add the installed app and enable it again. The bridge retries after permission returns.
 
 ## 8. Files and troubleshooting

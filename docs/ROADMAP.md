@@ -1,6 +1,6 @@
-# Planned functionality - not in 1.0.4
+# Planned functionality - not in 1.0.5
 
-The current application is intentionally left unchanged while the original station gathers operating experience. The following are requirements for a later version, not promises about the downloadable 1.0.4 app.
+Version 1.0.5 is limited to RUMlogNG control-panel compatibility repairs. The following are requirements for a later version, not promises about the downloadable 1.0.5 app.
 
 ## Respect the RUMlogNG Toggle setting
 
@@ -26,4 +26,4 @@ Selecting a terrestrial profile should disable SAT, block MacDoppler, configure 
 
 Manual power adjustment remains possible outside the QO-100 ceiling. MacDoppler's ongoing frequency packets must not repeatedly reset power. Transitions into QO-100 must lower and verify power before tuning.
 
-These 80% defaults are **not implemented** in 1.0.4. That version never automatically raises power when selecting MacDoppler.
+These 80% defaults are **not implemented** in 1.0.5. This version never automatically raises power when selecting MacDoppler.

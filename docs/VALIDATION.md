@@ -2,9 +2,21 @@
 
 ## Local regression suite
 
-Version 1.0.4 passes **50 local tests** across `test_bridge`, `test_app_packaging` and `test_native_control`. These use simulated transports/control models and temporary local sockets. Passing them does not establish RF performance or compatibility with an arbitrary station.
+Version 1.0.5 passes **60 local tests** across `test_bridge`, `test_app_packaging` and `test_native_control`. These use simulated transports/control models and temporary local sockets. Passing them does not establish RF performance or compatibility with an arbitrary station.
 
 The suite includes independent RX/TX command framing, blocked MacDoppler packets, stale and rejected report handling, startup Digital selection, saved-pair preservation, PTT gating, RX-only filter targeting, optimistic feedback rejection, no frequency retry on mismatch, and no command replay after a post-tuning power-read failure.
+
+Ten compatibility regressions cover full and compact VFO labels, missing Data fields, reordered readouts, placeholder modes, live field refresh, RX/TX separation, selected-VFO mode fallback and ambiguous indicators.
+
+## Version 1.0.5 live repair check - 26 October 2026
+
+The installed Intel app, version 1.0.5 build 7, was tested with RUMlogNG 6.6.1 on macOS 15.7.3. The original failure was a lookup for `VFO Main Band (RX)` while the panel exposed `VFO Main (RX)`. Its RX mode text also remained at the placeholder `Mode`; the selected-VFO mode buttons supplied the mode needed for RX-filter verification.
+
+After renewing macOS Accessibility access, Digital reached `QO-100 active — MacDoppler blocked`. Panel feedback reported RX 433.540000 MHz, TX 144.040000 MHz, RX filter 1, SAT on and RF power 4%. The bridge recorded exactly one RX-frequency setter, one TX-frequency setter and one mode setter per side. The last-command timestamp and applied count remained unchanged during the final stability sample, with no further setters in that launch's journal.
+
+Both modes were requested as USB-D. TX USB-D was exposed by the panel in the final sample. RX mode could remain unavailable during alternating polling; the filter check used the actual selected-VFO mode indicators rather than substituting the requested mode. Saved presets were byte-for-byte unchanged, and the installed executable matched the packaged build.
+
+No MacDoppler packets arrived during this repair check, so this release does not claim a new live UDP or over-the-air test. The earlier independent RX/TX checks below remain historical evidence.
 
 ## Live station checks
 

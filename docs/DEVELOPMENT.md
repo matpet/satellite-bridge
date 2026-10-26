@@ -26,7 +26,7 @@ To run the source UI: `python bridge_app.py`. Running the real UI can select Dig
 python -m unittest test_bridge test_app_packaging test_native_control -v
 ```
 
-The 50 tests exercise parsers, independent setters, source arbitration, TCP frames, PTT restrictions, persistence, startup, native-control models, readback, one-shot behavior and power recovery. They bind temporary loopback sockets and do not connect to the IC-9700. The test modules import macOS native frameworks, so this test command targets macOS.
+The 60 tests exercise parsers, independent setters, source arbitration, TCP frames, PTT restrictions, persistence, startup, native-control models, readback, one-shot behavior and power recovery. Compatibility cases cover both VFO label variants, reordered or omitted fields, placeholder modes, selected-VFO mode fallback and ambiguous indicators. They bind temporary loopback sockets and do not connect to the IC-9700. The test modules import macOS native frameworks, so this test command targets macOS.
 
 ## Source map
 

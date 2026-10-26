@@ -14,7 +14,7 @@ from reportlab.platypus import Paragraph, Table, TableStyle
 
 
 ROOT = Path(__file__).resolve().parents[1]
-OUTPUT = ROOT / "output/pdf/Satellite-Bridge-Guide-1.0.4.pdf"
+OUTPUT = ROOT / "output/pdf/Satellite-Bridge-Guide-1.0.5.pdf"
 W, H = A4
 LEFT, RIGHT = 44, W - 44
 WIDTH = RIGHT - LEFT
@@ -34,7 +34,7 @@ STYLES = {
 def main():
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     c = canvas.Canvas(str(OUTPUT), pagesize=A4, invariant=1)
-    c.setTitle("Satellite Bridge - Purpose and User Guide - 1.0.4")
+    c.setTitle("Satellite Bridge - Purpose and User Guide - 1.0.5")
     c.setAuthor("Matthias Peter")
     c.setSubject("MacDoppler UDP to RUMlogNG TRX2, with RUMlogNG as sole IC-9700 CAT controller")
     page_no, y = 0, 0
@@ -103,7 +103,7 @@ def main():
         c.setStrokeColor(colors.HexColor("#dce6eb"))
         c.line(LEFT, 43, RIGHT, 43)
         c.setFont("Helvetica", 8)
-        c.drawString(LEFT, 29, "1.0.4 public preview  |  Matthias Peter  |  25 October 2026")
+        c.drawString(LEFT, 29, "1.0.5 public preview  |  Matthias Peter  |  26 October 2026")
         c.drawRightString(RIGHT, 29, f"{page_no} / 6")
         y = H - 128
 
@@ -170,7 +170,7 @@ def main():
     text("Manual tuning is left alone and appears in RUMlogNG readback. USB/USB-D select <b>RX filter 1</b>; CW/CW-R select <b>RX filter 2</b>. The TX filter is not changed.")
     section("MacDoppler")
     text("Click MacDoppler to forward its live downlink and uplink independently. Only changed fields are sent during ongoing corrections. A cached report is accepted for up to eight seconds; otherwise the app waits. Invalid or same-band On Exit reports are rejected.")
-    text("Frequency-only corrections may continue during operator-keyed TX. Source/mode changes wait for PTT release. The app has no PTT-on or PTT-off operation. CTCSS fields are not forwarded in 1.0.4.")
+    text("Frequency-only corrections may continue during operator-keyed TX. Source/mode changes wait for PTT release. The app has no PTT-on or PTT-off operation. CTCSS fields are not forwarded in 1.0.5.")
     section("Return, pause and observe")
     text("Select any QO-100 row to block MacDoppler again and apply that pair once. Pause tuning stops frequency/mode writes while feedback and packet display continue. Use the packet checkbox to show actual incoming messages with forwarded/blocked/rejected labels.")
     section("Power is separate from tuning")
@@ -180,24 +180,24 @@ def main():
     text("The main line displays values read from RUMlogNG's panel, normally each second. Missing data says waiting; old data is marked stale. Missing TX modes are not invented. A QO-100 selection is checked for stable feedback, but a mismatch never triggers automatic retuning.")
 
     page("Evidence and limitations", "A station-tested preview, with current behavior described explicitly.")
-    callout("Known issue in 1.0.4: Toggle", "Feedback reads automatically enable RUMlogNG's Toggle control. Turning it off manually is not preserved. Removing this override is planned. QO-100 frequency/mode writes are one-shot, but the overall feedback path is not completely free of control actions.")
+    callout("Known issue in 1.0.5: Toggle", "Feedback reads automatically enable RUMlogNG's Toggle control. Turning it off manually is not preserved. Removing this override is planned. QO-100 frequency/mode writes are one-shot, but the overall feedback path is not completely free of control actions.")
     table([
         ["Test environment", "Observed configuration"],
         ["Computer", "Intel Mac; macOS 15.7.3"],
-        ["Applications", "RUMlogNG 6.5.1; MacDoppler 2.48"],
+        ["Applications", "Repair: RUMlogNG 6.6.1; earlier UDP: 6.5.1 / MacDoppler 2.48"],
         ["Radio connection", "IC-9700 as RUMlogNG TRX2; USB at 19200 baud"],
         ["Bundled runtime", "Python 3.12.14; Tcl/Tk 9.0.4"],
     ], [172, WIDTH - 172])
     section("What was checked")
-    text("<b>50 local tests</b> use simulated endpoints/control models. Earlier live tests used actual MacDoppler UDP packets and operator confirmation of RX-only and TX-only changes at the IC-9700. These are separate from the local test suite.")
-    text("An observation-only 1.0.4 startup check recorded exactly one RX setter, one TX setter and one mode setter per side. Digital readback remained 433.540000 / 144.040000 MHz, RX USB-D, RX filter 1, power 4%. TX USB-D was requested; the panel did not independently expose TX mode.")
+    text("<b>60 local tests</b> use simulated endpoints/control models, including compact VFO labels, omitted fields and selected-VFO mode fallback. Earlier live UDP tests separately used operator confirmation of independent RX/TX changes. No new live UDP test was performed for 1.0.5.")
+    text("The installed 1.0.5 build passed Digital startup with exactly four tuning setters: frequency and mode per side. Feedback verified 433.540000 / 144.040000 MHz, RX filter 1, SAT on and power 4%, with no repeated setters. Placeholder RX mode was checked from the selected-VFO buttons for filter verification; unavailable mode text remains unknown.")
     section("Why stable confirmation matters")
     text("An Amsat selection briefly showed requested TX 144.240000 MHz, then RUMlogNG reported the previous 144.198770 MHz. No later bridge frequency setter appeared, and MacDoppler packets were blocked. A separate diagnostic TX setter restored 144.240000. The exact cause was not established.")
     text("The app now reports unconfirmed feedback without automatically resending frequencies. Readback is still RUMlogNG's report, not an independent CAT connection or RF measurement.")
     section("Permissions and saved data")
     text("Ad-hoc-signed executable updates may require removing and re-adding the app's Accessibility entry. Settings and rotating logs live outside the bundle in ~/Library/Application Support/Satellite Bridge/. App updates preserve saved pairs.")
 
-    page("Planned next steps", "The following requirements are not implemented in the 1.0.4 download.")
+    page("Planned next steps", "The following requirements are not implemented in the 1.0.5 download.")
     section("A third operating mode: Terrestrial")
     text("Add named repeater and simplex profiles with the same Settings editor / one-click Operations model as QO-100. Repeater entries hold RX (repeater output), TX (repeater input), duplex direction/offset including DUP-, mode, and a TX CTCSS opening tone or none.")
     text("Simplex entries use equal RX/TX frequencies and no duplex offset, with voice/data settings. One requested example is a <b>144.800 MHz packet-radio channel</b>. Selecting Terrestrial should disable SAT, block MacDoppler and apply the profile once, then allow manual tuning.")
@@ -208,7 +208,7 @@ def main():
         ["MacDoppler", "Default 80%, applied once on mode entry"],
         ["Terrestrial", "Default 80%, applied once on mode entry"],
     ], [155, WIDTH - 155])
-    text("Outside QO-100, subsequent manual power adjustment remains possible. Incoming Doppler reports must not repeatedly reset power. Version 1.0.4 does not raise power on entry to MacDoppler. Respecting the operator's Toggle setting is also pending.")
+    text("Outside QO-100, subsequent manual power adjustment remains possible. Incoming Doppler reports must not repeatedly reset power. Version 1.0.5 does not raise power on entry to MacDoppler. Respecting the operator's Toggle setting is also pending.")
     section("Project, licensing and references")
     text('<link href="https://github.com/matpet/satellite-bridge" color="#147780"><b>github.com/matpet/satellite-bridge</b></link><br/>Source, setup guide, design rationale, validation summary, issues and releases.')
     text("Original bridge code and documentation: MIT, copyright 2026 Matthias Peter. Bundled Python, Tcl, Tk and the PyInstaller bootloader retain their own licenses; complete notices accompany the release.", "small")

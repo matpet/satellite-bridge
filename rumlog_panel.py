@@ -7,11 +7,16 @@ import time
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 
+from bridge_core import normalize_mode
 from macos_ax import AXError, application
 
 
 ON = "available"
 OFF = "no availability status"
+VFO_GROUP_NAMES = {
+    "VFO Main Band (RX)": ("VFO Main Band (RX)", "VFO Main (RX)"),
+    "VFO Sub Band (TX)": ("VFO Sub Band (TX)", "VFO Sub (TX)"),
+}
 
 
 def frequency_hz(text):
@@ -26,13 +31,24 @@ def frequency_hz(text):
 
 
 def band_fields(values):
-    values = list(values) + [""] * 4
-    mode = str(values[2] or "").strip().upper().replace(" ", "-") or None
-    if mode in ("USB", "LSB") and str(values[1]).strip().lower() == "data":
+    # RUMlogNG can omit the Data field from the Sub readout. Static labels
+    # and placeholder text must not be mistaken for a mode or a filter.
+    values = [str(value or "").strip() for value in values]
+    hz = mode = number = None
+    for text in values:
+        if hz is None:
+            hz = frequency_hz(text)
+        match = re.fullmatch(r"FIL\s+([123])", text)
+        if match:
+            number = int(match[1])
+        if mode is None:
+            try:
+                mode = normalize_mode(text.upper().replace(" ", "-"))
+            except ValueError:
+                pass
+    if mode in ("USB", "LSB") and any(value.lower() == "data" for value in values):
         mode += "-D"
-    mode = {"CWR": "CW-R", "RTTYR": "RTTY-R"}.get(mode, mode)
-    match = re.fullmatch(r"FIL\s+([123])", str(values[3]).strip())
-    return {"hz": frequency_hz(values[0]), "mode": mode, "filter": int(match[1]) if match else None}
+    return {"hz": hz, "mode": mode, "filter": number}
 
 
 class RumlogPanel:
@@ -74,6 +90,12 @@ class RumlogPanel:
                 label = child.get("AXTitleUIElement")
                 if label:
                     self._groups[label.get("AXValue")] = child
+            # Accept the compact VFO labels while retaining the explicit
+            # Main/RX and Sub/TX identities used by all tuning controls.
+            for candidate in VFO_GROUP_NAMES.get(name, (name,)):
+                if candidate in self._groups:
+                    self._groups[name] = self._groups[candidate]
+                    break
         if name not in self._groups:
             raise RuntimeError(f"IC-9700 {name} controls are not ready")
         return self._groups[name]
@@ -97,8 +119,47 @@ class RumlogPanel:
 
     def fields(self, group):
         if group not in self._texts:
-            self._texts[group] = [c for c in self.group(group).children if c.get("AXRole") == "AXStaticText"][:4]
+            self._texts[group] = [c for c in self.group(group).children if c.get("AXRole") == "AXStaticText"]
         return [c.get("AXValue", "") for c in self._texts[group]]
+
+    def selected_mode(self, band):
+        other = "Sub" if band == "Main" else "Main"
+        def selected():
+            return self.description("VFO", band) == ON and self.description("VFO", other) == OFF
+        if not selected():
+            return None
+        modes, data = [], None
+        for child in self.group("Mode").children:
+            if child.get("AXRole") != "AXButton":
+                continue
+            attrs = child.attrs("AXTitle", "AXDescription")
+            title, state = attrs["AXTitle"], attrs["AXDescription"]
+            if title == "Data":
+                data = state
+            elif state == ON:
+                title = {"RY": "RTTY", "RY R": "RTTY-R"}.get(title, title)
+                try:
+                    modes.append(normalize_mode(str(title).replace(" ", "-")))
+                except ValueError:
+                    pass
+        if len(modes) != 1 or not selected():
+            return None
+        mode = modes[0]
+        if mode in ("USB", "LSB"):
+            if data not in (ON, OFF):
+                return None
+            if data == ON:
+                mode += "-D"
+        return mode
+
+    def read_band(self, group, band):
+        result = band_fields(self.fields(group))
+        if result["mode"] is None:
+            # Some layouts leave the readout at the literal label "Mode".
+            # Use the live mode buttons only for their selected VFO; never
+            # substitute the requested mode or the other band's indicators.
+            result["mode"] = self.selected_mode(band)
+        return result
 
     def wait(self, predicate, label, timeout=3):
         deadline = time.monotonic() + timeout
@@ -148,7 +209,8 @@ class RumlogPanel:
             for attempt in range(2):
                 try:
                     self.ensure_polling()
-                    rx, tx = band_fields(self.fields("VFO Main Band (RX)")), band_fields(self.fields("VFO Sub Band (TX)"))
+                    rx = self.read_band("VFO Main Band (RX)", "Main")
+                    tx = self.read_band("VFO Sub Band (TX)", "Sub")
                     try:
                         power = self.read_power()
                     except (AXError, RuntimeError):
@@ -171,7 +233,7 @@ class RumlogPanel:
         with self.lock:
             # Read the dedicated RX fields first. No band selection or filter
             # click is necessary when the radio already reports the rule.
-            current = band_fields(self.fields("VFO Main Band (RX)"))
+            current = self.read_band("VFO Main Band (RX)", "Main")
             if current["mode"] == mode and current["filter"] == number:
                 return number
             was_toggling = self.description("Miscellaneous", "Toggle") == ON
@@ -183,7 +245,7 @@ class RumlogPanel:
                 if self.description("VFO", "Main") != ON:
                     self.press("VFO", "Main")
                 self.wait(lambda: self.description("VFO", "Main") == ON, "Main/RX selection")
-                self.wait(lambda: band_fields(self.fields("VFO Main Band (RX)"))["mode"] == mode, "RX mode")
+                self.wait(lambda: self.read_band("VFO Main Band (RX)", "Main")["mode"] == mode, "RX mode")
                 if self.description("Mode", f"Fi. {number}") != ON:
                     self.press("Mode", f"Fi. {number}")
                 self.wait(lambda: band_fields(self.fields("VFO Main Band (RX)"))["filter"] == number, "RX filter readback")

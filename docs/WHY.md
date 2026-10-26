@@ -40,8 +40,8 @@ The radio often quantizes a 5% request to a displayed 4%; that is within the req
 
 Sending a TCP command proves that a request was delivered to RUMlogNG, not that the IC-9700 has retained the requested frequency. The UI must show what RUMlogNG actually reports, including manual tuning and missing or stale data.
 
-Version 1.0.4 checks for stable readback after a QO-100 selection. If the values do not confirm the pair, it reports the difference without automatically resending frequencies. Temporary power-read problems can recover automatically, but an already-sent tuning batch must never be replayed by that recovery.
+Since version 1.0.4, the bridge checks for stable readback after a QO-100 selection. If the values do not confirm the pair, it reports the difference without automatically resending frequencies. Temporary power-read problems can recover automatically, but an already-sent tuning batch must never be replayed by that recovery.
 
 ## Extend later, without changing today's operation
 
-The current version is being used for experience and feedback. A future Terrestrial mode should offer the same simple selection model for repeaters and simplex voice/data channels. Planned power defaults are 80% for MacDoppler and terrestrial operation, with the QO-100 ceiling remaining 5%. Those features are described in the [roadmap](ROADMAP.md); they are not part of 1.0.4.
+The current version is being used for experience and feedback. A future Terrestrial mode should offer the same simple selection model for repeaters and simplex voice/data channels. Planned power defaults are 80% for MacDoppler and terrestrial operation, with the QO-100 ceiling remaining 5%. Those features are described in the [roadmap](ROADMAP.md); they are not part of 1.0.5.
