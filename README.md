@@ -4,15 +4,15 @@
 
 A small macOS app for keeping QO-100 operation and MacDoppler-controlled LEO operation on the same IC-9700, while **RUMlogNG remains the sole CAT controller connected to the radio**.
 
-**Current public preview: 1.0.5 · Intel macOS · MIT license**
+**Release candidate: 1.0.6 build 10 · Intel macOS · MIT license**
 
-[Download the app](https://github.com/matpet/satellite-bridge/releases/tag/v1.0.5) · [User guide](docs/USER-GUIDE.md) · [Why this app exists](docs/WHY.md) · [PDF guide](output/pdf/Satellite-Bridge-Guide-1.0.5.pdf) · [Planned features](docs/ROADMAP.md)
+[Published downloads](https://github.com/matpet/satellite-bridge/releases) · [User guide](docs/USER-GUIDE.md) · [Why this app exists](docs/WHY.md) · [PDF guide](output/pdf/Satellite-Bridge-Guide-1.0.6.pdf) · [Planned features](docs/ROADMAP.md)
 
 ![Satellite Bridge 1.0.4 showing QO-100 Digital selected, all four saved pairs, independent RX/TX readback, reported RF power 4%, and MacDoppler blocked](docs/images/satellite-bridge-1.0.4.png)
 
 *Actual app window on the original station. The packet feed is visible; no MacDoppler packets were arriving when this screenshot was taken.*
 
-Version 1.0.5 repairs control lookup for RUMlogNG 6.6.1 layouts with compact VFO labels, omitted fields and a placeholder RX mode. It preserves one-shot tuning and the 5% QO-100 ceiling. After an update, macOS may require removing and re-adding Satellite Bridge in Accessibility. See the [changelog](CHANGELOG.md).
+Version 1.0.6 repairs selected-VFO control with RUMlogNG 6.6.1 and adds panel-based TX CTCSS, source-specific receiver/power settings and QO-100 virtual split. SAT remains enabled. QO-100 accepts later radio-dial tuning; MacDoppler operation uses its own tuning aids and UDP reports. After an update, macOS may require removing and re-adding Satellite Bridge in Accessibility. See the [changelog](CHANGELOG.md).
 
 ## Why I wanted this app
 
@@ -29,14 +29,14 @@ flowchart LR
     MD[MacDoppler] -->|UDP 127.0.0.1:9932| B[Satellite Bridge]
     P[QO-100 presets] --> B
     B -->|TCP 127.0.0.1:7400| R[RUMlogNG TRX2]
-    B -->|macOS Accessibility: SAT, power, RX filter| R
+    B -->|macOS Accessibility: VFOs, tones, RX profile, power| R
     R -->|Sole CAT / USB connection| I[IC-9700]
     R -->|Panel readback via Accessibility| B
 ```
 
 The bridge does not open a serial port. MacDoppler uses its UDP Broadcast radio driver, not a second direct CAT connection.
 
-## What 1.0.5 does
+## What 1.0.6 does
 
 | Source | Tuning behavior |
 | --- | --- |
@@ -46,7 +46,11 @@ The bridge does not open a serial port. MacDoppler uses its UDP Broadcast radio 
 
 - New launches select the saved pair named **Digital**, with MacDoppler blocked.
 - The QO-100 power ceiling is set and checked before tuning, checked afterward, and monitored. This radio commonly reports 4% after a 5% request.
-- QO-100 RX filter rules: **CW/CW-R → filter 2; USB/USB-D → filter 1**. The TX filter is not changed.
+- Both sources apply **CW/CW-R → RX filter 2; USB/USB-D → RX filter 1**, including MacDoppler-imposed modes. Filter selection leaves TX unchanged.
+- QO-100 virtual split: USB/USB-D **+5/+10/+15 kHz**; CW/CW-R **+1/+2/+3 kHz**. The actual TX frequency is saved on activation; offsets do not stack, and Off restores that base. RX, modes and filters are preserved. A new preset/source clears split state.
+- QO-100 RX uses ATT with preamps off. MacDoppler RX uses ATT off and internal preamp on, with external 70 cm preamp activation for a 70 cm downlink.
+- MacDoppler sets **80% TX power after verifying its TX target**, and again on a TX band/mode change. Frequency-only updates preserve later operator power adjustments.
+- MacDoppler TX CTCSS and RX tone squelch are separate panel controls. SO-50 tones 74.4 and 67.0 Hz are passed as requested; the bridge never keys the radio.
 - Edit saved pairs in Settings; click one row in Operations to tune it.
 - Display both VFO frequency readbacks and actual incoming MacDoppler packets.
 - Confirm QO-100 feedback after selection without automatically retrying a frequency setter. A mismatch remains visible and manual tuning stays available.
@@ -66,25 +70,27 @@ See the [full setup and operating guide](docs/USER-GUIDE.md). The release is loc
 
 ## Current limitations
 
-- **1.0.5 automatically enables RUMlogNG's Toggle control during feedback reads. Turning it off in the panel is not preserved.** Respecting the operator's setting is planned, but that fix is **not** in this release.
+- The backend explicitly selects Main/RX and Sub/TX in SAT mode; it uses the ordinary frequency setter and panel mode controls. It does not use RUMlogNG 6.6.x's non-SAT tracking path.
+- During continuous MacDoppler output, alternating Toggle polling is held off so it cannot change the selected VFO. QO-100 return/app close restores the pre-tracking setting. QO-100 background feedback still enables Toggle.
+- UDP does not provide MacDoppler radio-dial tracking; use MacDoppler's tuning controls during passes. Radio-dial operation is preserved in QO-100.
 - Readback comes from RUMlogNG's panel, not an independent radio connection. A requested value can appear before a later CAT poll reports the previous value. Verification does not retry the tuning command.
 - Missing TX modes are omitted; missing frequencies say waiting and old feedback is labelled stale.
-- CTCSS fields in MacDoppler reports are not forwarded.
-- Terrestrial/repeater/simplex profiles and **80% default power in MacDoppler or terrestrial mode are planned, not implemented**. Switching to MacDoppler currently does not raise power.
+- The receiver profile provisions three exact receiver-only macros in unused RUMlogNG manual slots. Existing manual/automatic macros are preserved. These macros target the IC-9700 default CI-V address A2; a different address needs adaptation. External-preamp activation is commanded through RUMlogNG; an independent measurement of the external amplifier is outside these checks.
+- Terrestrial/repeater/simplex profiles remain planned. The 80% default is implemented for MacDoppler; QO-100 retains its 5% maximum.
 - The 5% guard is a software setting and monitor, not a hardware RF limiter.
-- Tested on one Intel Mac with macOS 15.7.3. Earlier checks used RUMlogNG 6.5.1 and MacDoppler 2.48; the 1.0.5 Digital startup repair was verified with RUMlogNG 6.6.1. No new live UDP test was performed for 1.0.5, and no native Apple Silicon build is provided.
+- Tested on one Intel Mac with macOS 15.7.3. Earlier checks used RUMlogNG 6.5.1 and MacDoppler 2.48; the 1.0.6 QO-100 SAT preset repair was verified with RUMlogNG 6.6.1. Controlled UDP replay through the real radio was checked for 1.0.6; no new over-the-air QSO or native Apple Silicon build is claimed.
 
 ## Development and validation
 
 The app uses Python's standard library, Tk, and native macOS Accessibility calls. Building the bundled app requires Python 3.12+ with Tk 9 and PyInstaller 6.22.3.
 
 ```sh
-python3 -m unittest test_bridge test_app_packaging test_native_control -v
+python3 -m unittest test_bridge test_app_packaging test_native_control test_virtual_split test_receiver_profiles -v
 python3 -m pip install -r requirements-build.txt
 python3 build_macos_app.py
 ```
 
-The **60 local tests** use simulated endpoints; they do not tune the IC-9700. Earlier live tests separately confirmed independent RX/TX changes. The installed 1.0.5 app also passed a live Digital startup and one-shot command check. See [development](docs/DEVELOPMENT.md) and [validation](docs/VALIDATION.md) for the evidence and its limits.
+The **118 local tests** use simulated endpoints. Separately, the full source pipeline applied 13 UDP updates to the real radio, including captured FO-29 reports, RX filter transitions and TX tone changes. It verified 80% MacDoppler defaults, both virtual-split ranges, exact base restoration and preserved QO-100 manual tuning. These are control/readback checks, not an over-the-air test. Installed-build verification is recorded separately. See [development](docs/DEVELOPMENT.md) and [validation](docs/VALIDATION.md) for the evidence and its limits.
 
 Settings and logs live in `~/Library/Application Support/Satellite Bridge/`, outside the app bundle. Public source and release assets exclude local radio logs, packet captures, account details and machine-specific test artifacts.
 

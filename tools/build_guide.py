@@ -14,7 +14,7 @@ from reportlab.platypus import Paragraph, Table, TableStyle
 
 
 ROOT = Path(__file__).resolve().parents[1]
-OUTPUT = ROOT / "output/pdf/Satellite-Bridge-Guide-1.0.5.pdf"
+OUTPUT = ROOT / "output/pdf/Satellite-Bridge-Guide-1.0.6.pdf"
 W, H = A4
 LEFT, RIGHT = 44, W - 44
 WIDTH = RIGHT - LEFT
@@ -34,7 +34,7 @@ STYLES = {
 def main():
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     c = canvas.Canvas(str(OUTPUT), pagesize=A4, invariant=1)
-    c.setTitle("Satellite Bridge - Purpose and User Guide - 1.0.5")
+    c.setTitle("Satellite Bridge - Purpose and User Guide - 1.0.6")
     c.setAuthor("Matthias Peter")
     c.setSubject("MacDoppler UDP to RUMlogNG TRX2, with RUMlogNG as sole IC-9700 CAT controller")
     page_no, y = 0, 0
@@ -103,8 +103,8 @@ def main():
         c.setStrokeColor(colors.HexColor("#dce6eb"))
         c.line(LEFT, 43, RIGHT, 43)
         c.setFont("Helvetica", 8)
-        c.drawString(LEFT, 29, "1.0.5 public preview  |  Matthias Peter  |  26 October 2026")
-        c.drawRightString(RIGHT, 29, f"{page_no} / 6")
+        c.drawString(LEFT, 29, "1.0.6 public preview  |  Matthias Peter  |  26 October 2026")
+        c.drawRightString(RIGHT, 29, f"{page_no} / 7")
         y = H - 128
 
     page("Why this app exists", "One CAT owner. Deliberate source selection. Independent RX and TX.")
@@ -129,7 +129,7 @@ def main():
             c.setStrokeColor(TEAL)
             c.line(x + box_width + 1, y - 27, x + box_width + gap - 1, y - 27)
     y -= 72
-    text("The bridge also uses RUMlogNG's panel through macOS Accessibility for SAT, RF power, the RX filter and feedback. It never opens the radio's serial device.", "small")
+    text("The bridge also uses RUMlogNG's panel through macOS Accessibility for VFO modes, tones, receiver settings, SAT, RF power, RX filters and feedback. It never opens the radio's serial device.", "small")
     section("Independent frequencies and converter protection")
     text("Downlink controls RX; uplink controls TX. Neither is calculated from the other. The QO-100 TX output feeds a converter, so this mode requires a maximum RF power setting of <b>5%</b>. The guard is software with feedback latency, not a hardware RF limiter.")
 
@@ -166,11 +166,11 @@ def main():
 
     page("Daily operation", "QO-100 writes once. MacDoppler forwards its continuing Doppler corrections.")
     section("QO-100")
-    text("Click a saved row. The bridge selects QO-100 authority, cancels pending MacDoppler work, and sends one batch of RX/TX frequencies and modes. It then checks feedback without a frequency retry. Selecting the row again is an explicit request to reapply it.")
-    text("Manual tuning is left alone and appears in RUMlogNG readback. USB/USB-D select <b>RX filter 1</b>; CW/CW-R select <b>RX filter 2</b>. The TX filter is not changed.")
+    text("Click a saved row. SAT stays enabled for native manual dial tracking. The bridge stops alternating polling, selects Main/RX and Sub/TX in turn, writes each frequency once and sets its mode/Data buttons. It verifies each side, restores the prior control view and polling, and never retries frequencies automatically.")
+    text("Manual tuning is left alone and appears in RUMlogNG readback. USB/USB-D select <b>RX filter 1</b>; CW/CW-R select <b>RX filter 2</b>. The same RX rule applies to MacDoppler-imposed modes. The TX filter is not changed.")
     section("MacDoppler")
     text("Click MacDoppler to forward its live downlink and uplink independently. Only changed fields are sent during ongoing corrections. A cached report is accepted for up to eight seconds; otherwise the app waits. Invalid or same-band On Exit reports are rejected.")
-    text("Frequency-only corrections may continue during operator-keyed TX. Source/mode changes wait for PTT release. The app has no PTT-on or PTT-off operation. CTCSS fields are not forwarded in 1.0.5.")
+    text("Frequency-only corrections may continue during operator-keyed TX. Source/mode changes wait for PTT release. The app has no PTT-on or PTT-off operation. Use MacDoppler's own tuning aids during passes; UDP does not supply radio-dial tracking.")
     section("Return, pause and observe")
     text("Select any QO-100 row to block MacDoppler again and apply that pair once. Pause tuning stops frequency/mode writes while feedback and packet display continue. Use the packet checkbox to show actual incoming messages with forwarded/blocked/rejected labels.")
     section("Power is separate from tuning")
@@ -179,36 +179,56 @@ def main():
     section("Readback is not command history")
     text("The main line displays values read from RUMlogNG's panel, normally each second. Missing data says waiting; old data is marked stale. Missing TX modes are not invented. A QO-100 selection is checked for stable feedback, but a mismatch never triggers automatic retuning.")
 
+    page("Split, tones and RX profiles", "Explicit controls; the radio connection still belongs to RUMlogNG.")
+    section("QO-100 virtual split")
+    table([
+        ["TX mode", "Selectable positive offset"],
+        ["USB / USB-D", "Off, +5, +10 or +15 kHz"],
+        ["CW / CW-R", "Off, +1, +2 or +3 kHz"],
+    ], [155, WIDTH - 155])
+    text("Enabling split saves the actual TX frequency, including manual tuning since the preset. Each choice uses that same base; offsets never stack. <b>Off restores the saved TX base exactly.</b> RX, modes and filters are preserved. A new preset or MacDoppler selection clears split state.")
+    text("Example: a manually tuned base of 144.040220 MHz gives 144.045220 at +5 kHz and 144.050220 at +10 kHz. Off restores 144.040220. Release PTT before changing split. Normal app startup still selects Digital.", "small")
+    section("Receiver and power profiles")
+    table([
+        ["Source", "RX front end", "TX power"],
+        ["QO-100", "ATT on; internal/external preamps off", "Maximum 5%"],
+        ["MacDoppler", "ATT off; internal preamp on; external preamp for a 70 cm downlink", "Default 80%"],
+    ], [95, 280, WIDTH - 375])
+    text("MacDoppler's 80% default is applied after its TX frequency/mode verifies, on entry or a TX band/mode change. Frequency-only corrections preserve subsequent manual power adjustment. QO-100 continues monitoring its 5% ceiling.")
+    text("Receiver setup uses three exact receiver-only macros in unused RUMlogNG manual slots. Existing manual and automatic macros are preserved. These commands currently use default IC-9700 CI-V address A2. External-preamp activation is commanded; the external amplifier is not independently measured.", "small")
+    section("TX CTCSS and RX tone squelch are separate")
+    text("MacDoppler's Tone value controls the TX encoder through its panel popup/button. Its CTCSS/decode value controls RX TSQL separately. Zero disables the corresponding function; omission leaves it unchanged. SO-50's 74.4 and 67.0 Hz settings are passed as requested. The bridge never keys a transmission.")
+
     page("Evidence and limitations", "A station-tested preview, with current behavior described explicitly.")
-    callout("Known issue in 1.0.5: Toggle", "Feedback reads automatically enable RUMlogNG's Toggle control. Turning it off manually is not preserved. Removing this override is planned. QO-100 frequency/mode writes are one-shot, but the overall feedback path is not completely free of control actions.")
+    callout("Desktop access and polling", "Panel controls require an unlocked macOS session and Accessibility access. MacDoppler holds alternating polling off across its stream; QO-100 return restores the earlier setting. QO-100 feedback still enables Toggle. The bridge retains SAT and explicit Main/RX and Sub/TX control.")
     table([
         ["Test environment", "Observed configuration"],
         ["Computer", "Intel Mac; macOS 15.7.3"],
-        ["Applications", "Repair: RUMlogNG 6.6.1; earlier UDP: 6.5.1 / MacDoppler 2.48"],
+        ["Applications", "RUMlogNG 6.6.1; MacDoppler 2.48 reports; earlier checks also used 6.5.1"],
         ["Radio connection", "IC-9700 as RUMlogNG TRX2; USB at 19200 baud"],
         ["Bundled runtime", "Python 3.12.14; Tcl/Tk 9.0.4"],
     ], [172, WIDTH - 172])
     section("What was checked")
-    text("<b>60 local tests</b> use simulated endpoints/control models, including compact VFO labels, omitted fields and selected-VFO mode fallback. Earlier live UDP tests separately used operator confirmation of independent RX/TX changes. No new live UDP test was performed for 1.0.5.")
-    text("The installed 1.0.5 build passed Digital startup with exactly four tuning setters: frequency and mode per side. Feedback verified 433.540000 / 144.040000 MHz, RX filter 1, SAT on and power 4%, with no repeated setters. Placeholder RX mode was checked from the selected-VFO buttons for filter verification; unavailable mode text remains unknown.")
+    text("<b>118 local tests</b> cover parsing, selected VFOs, independent modes, tones, receiver macros, power, RX filters, virtual split and failure recovery. These tests use simulated endpoints. A separate controlled UDP replay applied 13 updates to the real IC-9700 through RUMlogNG, including captured FO-29 reports and TX tone transitions.")
+    text("The source check verified 80% MacDoppler defaults, RX filters without TX-filter changes, receiver profiles, both split ranges and exact base restoration. A +220 Hz QO-100 dial adjustment was preserved with no additional bridge setters. Installed-build acceptance is separate. No over-the-air QSO or external-amplifier measurement is claimed.")
     section("Why stable confirmation matters")
     text("An Amsat selection briefly showed requested TX 144.240000 MHz, then RUMlogNG reported the previous 144.198770 MHz. No later bridge frequency setter appeared, and MacDoppler packets were blocked. A separate diagnostic TX setter restored 144.240000. The exact cause was not established.")
     text("The app now reports unconfirmed feedback without automatically resending frequencies. Readback is still RUMlogNG's report, not an independent CAT connection or RF measurement.")
     section("Permissions and saved data")
     text("Ad-hoc-signed executable updates may require removing and re-adding the app's Accessibility entry. Settings and rotating logs live outside the bundle in ~/Library/Application Support/Satellite Bridge/. App updates preserve saved pairs.")
 
-    page("Planned next steps", "The following requirements are not implemented in the 1.0.5 download.")
+    page("Planned next steps", "Terrestrial profiles remain planned; MacDoppler power defaults are implemented.")
     section("A third operating mode: Terrestrial")
     text("Add named repeater and simplex profiles with the same Settings editor / one-click Operations model as QO-100. Repeater entries hold RX (repeater output), TX (repeater input), duplex direction/offset including DUP-, mode, and a TX CTCSS opening tone or none.")
     text("Simplex entries use equal RX/TX frequencies and no duplex offset, with voice/data settings. One requested example is a <b>144.800 MHz packet-radio channel</b>. Selecting Terrestrial should disable SAT, block MacDoppler and apply the profile once, then allow manual tuning.")
-    section("Planned power defaults")
+    section("Current and planned power defaults")
     table([
         ["Mode", "Planned behavior"],
         ["QO-100", "Maximum 5%; verify before tuning and monitor"],
-        ["MacDoppler", "Default 80%, applied once on mode entry"],
+        ["MacDoppler", "Implemented: 80% after target verification on entry / TX band or mode change"],
         ["Terrestrial", "Default 80%, applied once on mode entry"],
     ], [155, WIDTH - 155])
-    text("Outside QO-100, subsequent manual power adjustment remains possible. Incoming Doppler reports must not repeatedly reset power. Version 1.0.5 does not raise power on entry to MacDoppler. Respecting the operator's Toggle setting is also pending.")
+    text("MacDoppler's 80% default is implemented in 1.0.6; terrestrial profiles and their default remain planned. Later manual MacDoppler power adjustment is preserved during frequency-only updates. QO-100 feedback still forces Toggle on; respecting its manual setting there remains pending.")
     section("Project, licensing and references")
     text('<link href="https://github.com/matpet/satellite-bridge" color="#147780"><b>github.com/matpet/satellite-bridge</b></link><br/>Source, setup guide, design rationale, validation summary, issues and releases.')
     text("Original bridge code and documentation: MIT, copyright 2026 Matthias Peter. Bundled Python, Tcl, Tk and the PyInstaller bootloader retain their own licenses; complete notices accompany the release.", "small")

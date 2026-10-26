@@ -1,6 +1,14 @@
-# Planned functionality - not in 1.0.5
+# Planned functionality - not in 1.0.6
 
-Version 1.0.5 is limited to RUMlogNG control-panel compatibility repairs. The following are requirements for a later version, not promises about the downloadable 1.0.5 app.
+Version 1.0.6 is under development and has not been published. The following requirements are not promises about a downloadable app.
+
+## Current operating decision - 26 October 2026
+
+RUMlogNG remains the sole physical CAT owner. During MacDoppler operation, the operator uses MacDoppler's tuning aids; radio-knob tracking in MacDoppler is not required. Keep the UDP route and forward RX/TX independently. The experimental virtual-radio route is outside the current repair scope.
+
+QO-100 retains SAT and accepts manual tuning at the radio after a preset has been applied once. Display changes and power-feedback recovery must preserve those dial changes. Explicitly selecting a preset again restores its saved pair once. Incoming MacDoppler reports remain blocked, and the 5% power ceiling continues to be monitored.
+
+MacDoppler TX CTCSS must use RUMlogNG's IC-9700 control panel: select TX, set the tone frequency, and enable or disable Tone. RX TSQL is a separate request. SO-50's 74.4 Hz and 67.0 Hz settings must be forwarded as supplied by MacDoppler, with no automatic PTT. Controlled real-radio replay verified frequency/mode, tones, filters, power and virtual split. External-amplifier operation and on-air satellite access are separate operator checks.
 
 ## Respect the RUMlogNG Toggle setting
 
@@ -21,9 +29,9 @@ Selecting a terrestrial profile should disable SAT, block MacDoppler, configure 
 | Mode | Planned power behavior |
 | --- | --- |
 | QO-100 | Maximum 5%, verified before tuning and continuously monitored |
-| MacDoppler | Default 80%, set once when entering the mode |
+| MacDoppler | Implemented: 80% after target verification on entry or a TX band/mode change |
 | Terrestrial repeater/simplex | Default 80%, set once when entering the mode |
 
 Manual power adjustment remains possible outside the QO-100 ceiling. MacDoppler's ongoing frequency packets must not repeatedly reset power. Transitions into QO-100 must lower and verify power before tuning.
 
-These 80% defaults are **not implemented** in 1.0.5. This version never automatically raises power when selecting MacDoppler.
+The MacDoppler default is implemented in 1.0.6. Terrestrial profiles and their proposed 80% default remain unimplemented. QO-100 remains capped at 5%.

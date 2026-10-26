@@ -10,6 +10,7 @@ import subprocess
 
 CF = C.CDLL("/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation")
 AX = C.CDLL("/System/Library/Frameworks/ApplicationServices.framework/ApplicationServices")
+CG = C.CDLL("/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics")
 PTR = C.c_void_p
 INDEX = C.c_long
 UTF8 = 0x08000100
@@ -46,8 +47,11 @@ ax_value_get = signature(AX, "AXValueGetValue", C.c_bool, [PTR, C.c_uint32, PTR]
 set_attribute = signature(AX, "AXUIElementSetAttributeValue", C.c_int, [PTR, PTR, PTR])
 perform_action = signature(AX, "AXUIElementPerformAction", C.c_int, [PTR, PTR])
 create_application = signature(AX, "AXUIElementCreateApplication", PTR, [C.c_int])
+create_system = signature(AX, "AXUIElementCreateSystemWide", PTR, [])
 set_timeout = signature(AX, "AXUIElementSetMessagingTimeout", C.c_int, [PTR, C.c_float])
 is_trusted = signature(AX, "AXIsProcessTrusted", C.c_bool, [])
+copy_session = signature(CG,"CGSessionCopyCurrentDictionary",PTR,[])
+dictionary_value = signature(CF,"CFDictionaryGetValue",PTR,[PTR,PTR])
 
 _strings = {}
 
@@ -117,6 +121,11 @@ class Element:
         if code:
             raise AXError(code, "press")
 
+    def cancel(self):
+        code = perform_action(self.reference, cf_string("AXCancel"))
+        if code:
+            raise AXError(code, "close menu")
+
     def attrs(self, *names):
         refs = (PTR * len(names))(*(cf_string(name) for name in names))
         keys = make_array(None, refs, len(names), None)
@@ -142,12 +151,29 @@ class Element:
         finally:
             release(reference)
 
+    def set_boolean(self, name, value):
+        reference = C.c_void_p.in_dll(CF, "kCFBooleanTrue" if value else "kCFBooleanFalse")
+        code = set_attribute(self.reference, cf_string(name), reference)
+        if code:
+            raise AXError(code, name)
+
+    def set_text(self, value):
+        self.set_boolean("AXFocused",True)
+        code = set_attribute(self.reference,cf_string("AXValue"),cf_string(value))
+        if code:
+            raise AXError(code,"set text")
+        code = perform_action(self.reference,cf_string("AXConfirm"))
+        if code:
+            raise AXError(code,"confirm text")
+
     @property
     def children(self):
         return self.get("AXChildren", [])
 
 
 def application(process_name="RUMlogNG"):
+    if session_locked():
+        raise RuntimeError("Unlock the Mac to allow IC-9700 panel control")
     if not is_trusted():
         raise AXError(-25211, "permission")
     result = subprocess.run(["/usr/bin/pgrep", "-x", process_name], text=True, capture_output=True, timeout=2)
@@ -157,3 +183,18 @@ def application(process_name="RUMlogNG"):
     if len(pids) != 1:
         raise RuntimeError("More than one RUMlogNG process is running")
     return Element(create_application(int(pids[0])))
+
+
+def focused_application():
+    return Element(create_system()).get("AXFocusedApplication")
+
+
+def session_locked():
+    session=copy_session()
+    if not session:
+        return True
+    try:
+        value=dictionary_value(session,cf_string("CGSSessionScreenIsLocked"))
+        return bool(decode(value)) if value else False
+    finally:
+        release(session)

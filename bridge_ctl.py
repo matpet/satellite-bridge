@@ -8,7 +8,8 @@ from bridge_rpc import request
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=("status", "follow", "pause", "save-preset", "qo100", "activate", "quit", "check-access"))
+    parser.add_argument("action", choices=("status", "follow", "pause", "split", "save-preset", "qo100", "activate", "quit", "check-access"))
+    parser.add_argument("--offset-hz",type=int,default=0,help="QO-100 virtual split; 0 restores the saved TX base")
     parser.add_argument("--name")
     parser.add_argument("--rx")
     parser.add_argument("--tx")

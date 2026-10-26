@@ -59,6 +59,27 @@ class ParsingTests(unittest.TestCase):
         self.assertEqual((pair.rx_hz, pair.tx_hz), (433541123, 144037987))
         self.assertEqual((pair.rx_mode, pair.tx_mode), ("USB-D", "CW"))
 
+    def test_macdoppler_tx_tone_and_rx_squelch_are_separate(self):
+        for hz in (67.0,74.4):
+            text = packet("436.795", "145.850", "FM", "FM")[:-1] + f", tone:{hz}, ctone:0.0]"
+            pair = parse_radio_report(text)
+            self.assertEqual(pair.tx_tone_hz,hz)
+            self.assertEqual(pair.rx_tone_hz,0.0)
+
+    def test_omitted_tone_is_distinct_from_disabled_tone(self):
+        omitted = parse_radio_report(packet("436.795", "145.850", "FM", "FM"))
+        disabled = parse_radio_report(packet("436.795", "145.850", "FM", "FM")[:-1] + ", tone:0.0]")
+        self.assertIsNone(omitted.tx_tone_hz)
+        self.assertEqual(disabled.tx_tone_hz,0.0)
+        self.assertIsNone(disabled.rx_tone_hz)
+
+    def test_invalid_or_non_fm_tone_is_rejected_before_dispatch(self):
+        for tone in ('NaN','Infinity','-67','74.5','999'):
+            with self.subTest(tone=tone), self.assertRaises(ValueError):
+                parse_radio_report(packet("436.795", "145.850", "FM", "FM")[:-1] + f", tone:{tone}]")
+        with self.assertRaisesRegex(ValueError,"CTCSS requires FM"):
+            parse_radio_report(packet("436.795", "145.850", "FM", "USB")[:-1] + ", tone:67.0]")
+
     def test_reject_partial_duplicate_invalid_and_nonfinite_packets(self):
         for text in (
             "[Sat Radio Report:Down Mhz:433.5, Down Mode:USB]",
@@ -491,7 +512,7 @@ class FilterTests(unittest.TestCase):
         self.assertEqual(control.filters, {"Main": 2, "Sub": 1})
         self.assertEqual(control.band, "Sub")
 
-    def test_qo_rx_filter_rules_and_macdoppler_does_not_override_them(self):
+    def test_rx_filter_rules_apply_to_qo_and_macdoppler_modes(self):
         selected = []
         def choose(mode, number):
             selected.append((mode, number))
@@ -506,11 +527,15 @@ class FilterTests(unittest.TestCase):
                 self.assertEqual(selected[-1], (mode, wanted))
                 self.assertEqual(bridge.rx_filter_number, wanted)
                 self.assertEqual(bridge.last_sent.tx_mode, "USB-D")
-            before = len(selected)
             bridge.follow_macdoppler()
-            bridge.ingest(packet())
-            eventually(lambda: bridge.last_sent == LEO)
-            self.assertEqual(len(selected), before)
+            for mode,wanted in (("CW",2),("CW-R",2),("USB",1),("USB-D",1)):
+                pair = Pair.from_values("435.800", "145.997", mode, "FM")
+                count = bridge.applied
+                bridge.ingest(packet("435.800", "145.997", mode, "FM"))
+                eventually(lambda: bridge.applied > count)
+                self.assertEqual(selected[-1],(mode,wanted))
+                self.assertEqual(bridge.rx_filter_number,wanted)
+                self.assertEqual(bridge.last_sent.tx_mode,"FM")
         finally:
             bridge.close()
 
@@ -522,6 +547,18 @@ class FilterTests(unittest.TestCase):
             eventually(lambda: bool(bridge.error))
             self.assertFalse(bridge.transport.calls)
             self.assertIn("RX filter control is unavailable", bridge.error)
+        finally:
+            bridge.close()
+
+    def test_missing_rx_filter_control_also_blocks_macdoppler_cw_before_tuning(self):
+        bridge = Bridge(transport_factory=FakeTransport)
+        bridge.start(port=0)
+        try:
+            bridge.follow_macdoppler()
+            bridge.ingest(packet("435.800","145.997","CW","USB"))
+            eventually(lambda: bool(bridge.error))
+            self.assertFalse(bridge.transport.calls)
+            self.assertIn("RX filter control is unavailable",bridge.error)
         finally:
             bridge.close()
 

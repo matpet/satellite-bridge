@@ -9,10 +9,11 @@ import threading
 import tkinter as tk
 import traceback
 import uuid
+from decimal import Decimal
 from tkinter import ttk, messagebox
 
-from bridge_core import Bridge, Transport, Pair, Settings, MODES
-from rumlog_test import Commander
+from bridge_core import Bridge, Transport, Pair, Settings, MODES, virtual_split_offsets, mhz_text, dial_band
+from rumlog_test import Commander, field
 from rumlog_panel import RumlogPanel, NativePowerControl, NativeRxFilterControl
 from bridge_rpc import start_server, request, SOCKET_PATH
 from bridge_paths import data_directory, prepare_data, instance_lock
@@ -40,8 +41,8 @@ class App:
     def __init__(self, root):
         self.root = root
         root.title("Satellite Bridge — IC-9700")
-        root.geometry("700x580")
-        root.minsize(620, 520)
+        root.geometry("700x640")
+        root.minsize(620, 600)
         root.configure(bg="#edf1f5")
         style = ttk.Style()
         style.theme_use("clam")
@@ -74,7 +75,7 @@ class App:
         self.radio_panel = RumlogPanel()
         self.power_control = NativePowerControl(self.radio_panel)
         self.filter_control = NativeRxFilterControl(self.radio_panel)
-        self.bridge = Bridge(transport_factory=self.transport, journal=ROOT / "bridge-events.jsonl", power_guard=self.power_control.limit, rx_filter=self.filter_control.select, radio_reader=self.power_control.feedback, verify_qo=True)
+        self.bridge = Bridge(transport_factory=self.transport, journal=ROOT / "bridge-events.jsonl", power_guard=self.power_control.limit, rx_filter=self.filter_control.select, radio_reader=self.power_control.feedback, verify_qo=True, split_controller=self.apply_virtual_split)
         self.power_control.log = self.bridge.log
         self.filter_control.log = self.bridge.log
         try:
@@ -108,7 +109,37 @@ class App:
                     raise RuntimeError("Release PTT before enabling satellite mode")
                 self.radio_panel.enable_sat()
             log("sat_ready", state="ON")
-        return Transport(log, ensure_sat=ensure_sat)
+        def write_pair(pair, previous, force):
+            needs_rx = previous is None or any(getattr(previous, key) != getattr(pair, key)
+                                               for key in ("rx_mode", "tx_mode", "tx_tone_hz", "rx_tone_hz")) or (
+                                                   dial_band(previous.rx_hz),dial_band(previous.tx_hz)) != (dial_band(pair.rx_hz),dial_band(pair.tx_hz))
+            def check_rx():
+                if needs_rx and transport.command("CmdSendTx", reply="CmdTX").upper() != "OFF":
+                    # A partially written pair must pause, never be replayed
+                    # automatically when the operator releases PTT.
+                    raise RuntimeError("Release PTT and select the pair again")
+            def set_frequency(hz):
+                khz = format(Decimal(hz) / 1000, ".3f")
+                transport.command("CmdSetFreq", field("xcvrfreq", khz))
+            self.radio_panel.apply_satellite_pair(pair, previous, set_frequency, check_rx, log,
+                                                  continuous=self.bridge.source == "macdoppler",rx_profile=self.bridge.source)
+            if self.bridge.source == "macdoppler" and (previous is None or
+                    (dial_band(previous.tx_hz),previous.tx_mode) != (dial_band(pair.tx_hz),pair.tx_mode)):
+                def require_rx():
+                    if transport.command("CmdSendTx",reply="CmdTX").upper() != "OFF":
+                        raise RuntimeError("Release PTT before applying MacDoppler's TX power default")
+                self.power_control.set_default(80,require_rx)
+            return True
+        transport = Transport(log, ensure_sat=ensure_sat, pair_writer=write_pair)
+        return transport
+
+    def apply_virtual_split(self, base_hz, offset_hz, remember_base):
+        def check_rx():
+            if self.bridge.transport.command("CmdSendTx",reply="CmdTX").upper() != "OFF":
+                raise RuntimeError("Release PTT before changing virtual split")
+        def set_frequency(hz):
+            self.bridge.transport.command("CmdSetFreq",field("xcvrfreq",format(Decimal(hz)/1000,".3f")))
+        return self.radio_panel.apply_virtual_split(base_hz,offset_hz,remember_base,set_frequency,check_rx)
 
     def build(self):
         outer = ttk.Frame(self.root, padding=14)
@@ -140,6 +171,18 @@ class App:
         scrollbar.pack(side="right", fill="y")
         self.pairs.bind("<ButtonRelease-1>", self.pair_clicked)
         self.pairs.bind("<Return>", self.pair_entered)
+        split_row = ttk.Frame(outer)
+        split_row.pack(fill="x",pady=(7,0))
+        ttk.Label(split_row,text="Virtual split:").pack(side="left",padx=(0,8))
+        self.split_choice = tk.IntVar(value=0)
+        self.split_buttons = []
+        for index in range(4):
+            button = ttk.Radiobutton(split_row,text="Off" if index==0 else "—",variable=self.split_choice,
+                                     value=0 if index==0 else index,command=self.change_virtual_split)
+            button.pack(side="left",padx=(0,8))
+            self.split_buttons.append(button)
+        self.split_text = ttk.Label(outer,text="",foreground="#657589",font=("Helvetica",10))
+        self.split_text.pack(anchor="w",pady=(3,0))
         info = ttk.Frame(outer, style="Card.TFrame", padding=(10, 9))
         info.pack(fill="x", pady=(10, 0))
         self.sent_text = ttk.Label(info, text="Radio feedback: waiting for RUMlogNG", style="Card.TLabel", font=("Menlo", 11))
@@ -320,14 +363,18 @@ class App:
         except (ValueError, OSError) as error:
             messagebox.showerror("Check the QO-100 pair", str(error), parent=self.settings_window)
 
-    def run_job(self, action):
-        self.banner.configure(text="Switching source…", bg="#f7e3b6")
+    def run_job(self, action, status="Switching source…"):
+        self.banner.configure(text=status, bg="#f7e3b6")
         def work():
             try:
                 action()
             except Exception as error:
                 self.jobs.put(str(error))
         threading.Thread(target=work, daemon=True).start()
+
+    def change_virtual_split(self):
+        offset = self.split_choice.get()
+        self.run_job(lambda:self.bridge.set_virtual_split(offset),status="Applying virtual TX split…")
 
     def control_request(self, request):
         action = request.get("action")
@@ -345,6 +392,9 @@ class App:
             return self.bridge.snapshot()
         if action == "pause":
             self.bridge.pause()
+            return self.bridge.snapshot()
+        if action == "split":
+            self.bridge.set_virtual_split(request.get("offset_hz"))
             return self.bridge.snapshot()
         if action == "qo100":
             preset = next((p for p in self.settings.data["presets"] if p["name"] == request.get("name")), None)
@@ -413,9 +463,18 @@ class App:
             status, bg, fg = "Power feedback delayed — tuning held; retrying automatically", "#f7e3b6", "#76551c"
             if "Accessibility" in state["power_error"]:
                 status = "Enable Satellite Bridge in Privacy & Security → Accessibility; retrying automatically"
+            elif "Unlock the Mac" in state["power_error"]:
+                status = state["power_error"]
         elif state["error"]:
             status += ": " + state["error"]
             bg, fg = "#f7dcdc", "#842e2e"
+        pending_split=state['virtual_split']['pending_offset_hz']
+        if pending_split is not None:
+            status='Restoring saved TX base…' if pending_split==0 else f'Applying TX virtual split +{pending_split//1000} kHz…'
+            bg,fg='#f7e3b6','#76551c'
+        elif state['virtual_split']['error']:
+            status='Virtual split: '+state['virtual_split']['error']
+            bg,fg='#f7dcdc','#842e2e'
         self.banner.configure(text=status, bg=bg, fg=fg, wraplength=max(550, self.root.winfo_width()-50))
         if state["power_error"] and state["power_cap_active"]:
             self.power_text.configure(text="Power unverified · tuning held · retrying", foreground="#76551c")
@@ -423,20 +482,44 @@ class App:
             radio_filter = (state["radio"] or {}).get("rx_filter") if not state["radio_error"] else None
             filter_text = f" · RX filter {radio_filter}" if radio_filter else ""
             self.power_text.configure(text=f"QO-100 TX ≤ 5% · reported {state['power_percent']:g}%" + filter_text, foreground="#15593f")
+        elif state['source']=='macdoppler':
+            reported=(state.get('radio') or {}).get('power_percent')
+            text='MacDoppler TX default: 80%' + (f' · reported {reported:g}%' if reported is not None else '')
+            number=(state.get('radio') or {}).get('rx_filter')
+            self.power_text.configure(text=text+(f' · RX filter {number}' if number else ''),foreground='#15593f')
         else:
-            self.power_text.configure(text="QO-100 TX ceiling: 5% · LEO power is not raised", foreground="#657589")
+            self.power_text.configure(text="QO-100 TX ceiling: 5%", foreground="#657589")
         readout, radio_fresh = radio_readout(state)
         self.sent_text.configure(text=readout, foreground="#182c3e" if radio_fresh else "#76551c")
+        split = state["virtual_split"]
+        mode = (state.get("radio") or {}).get("tx_mode") or (state.get("qo_pair") or {}).get("tx_mode")
+        offsets = virtual_split_offsets(mode)
+        qo_ready = split['available'] and pending_split is None
+        for index,button in enumerate(self.split_buttons):
+            value = offsets[index] if index<len(offsets) else -index
+            button.configure(text="Off" if index==0 else f"+{value//1000} kHz" if value>0 else "—",value=value)
+            available = (qo_ready and index<len(offsets) or index==0 and state["source"]=="qo100" and split["base_tx_hz"] is not None) and pending_split is None
+            button.state(["!disabled"] if available else ["disabled"])
+        self.split_choice.set(split["offset_hz"] if pending_split is None else pending_split)
+        split_label = f"Saved TX base {mhz_text(split['base_tx_hz'])} MHz" if split["base_tx_hz"] is not None else "Off restores the TX frequency saved when split was enabled."
+        self.split_text.configure(text=split["error"] or split_label,foreground="#76551c" if split["error"] else "#657589")
         for preset in self.settings.data["presets"]:
             active = state["enabled"] and state["status"].startswith("QO-100 active") and state["last_sent_source"] == "qo100" and state["source"] == "qo100" and preset["name"] == state["qo_name"] and all(preset.get(k) == v for k, v in (state["last_sent"] or {}).items())
             self.pairs.item(preset["id"], tags=("active",) if active else ())
         incoming = state["latest"]
         if incoming:
             text = f"MacDoppler · {state['satellite']} · RX {incoming['rx_mhz']} / TX {incoming['tx_mhz']}"
+            if incoming.get("tx_tone_hz") is not None:
+                tone = incoming["tx_tone_hz"]
+                text += " · TX CTCSS " + (f"{tone:g} Hz requested" if tone else "off requested")
         elif state["input_error"]:
             text = f"MacDoppler · {state['satellite']} · waiting for a valid satellite pair"
         else:
             text = "MacDoppler · waiting for packets"
+        sent = state.get("last_sent") or {}
+        if state["source"] == "macdoppler" and state.get("last_sent_source") == "macdoppler" and sent.get("tx_tone_hz") is not None:
+            tone = sent["tx_tone_hz"]
+            text += "\nLast applied TX CTCSS: " + (f"{tone:g} Hz" if tone else "off")
         self.md_text.configure(text=text, wraplength=max(550, self.root.winfo_width()-50))
         self.counters.configure(text=f"Received {state['received']} · ignored {state['ignored']} · rejected {state['rejected']}    |    Radio {'live' if radio_fresh else 'waiting'} · TRX 2")
         packet_events = state["packets"]
@@ -464,6 +547,12 @@ class App:
     def close(self):
         self.shutting_down = True
         self.bridge.close()
+        try:
+            self.radio_panel.release_tracking_polling()
+        except Exception as error:
+            # Closing the app must still release its receiver and UI when
+            # RUMlogNG is unavailable; no tuning is attempted here.
+            print(f"Could not restore RUMlogNG polling: {error}", file=sys.stderr)
         self.control_server.shutdown()
         self.control_server.server_close()
         if SOCKET_PATH.exists():

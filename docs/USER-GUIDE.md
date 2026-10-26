@@ -1,14 +1,14 @@
-# User guide - version 1.0.5
+# User guide - version 1.0.6
 
 ## 1. Requirements and connections
 
-This release supplies an Intel macOS app. The 1.0.5 control-panel repair and Digital startup were tested on macOS 15.7.3 with RUMlogNG 6.6.1 and an IC-9700 attached by USB. Earlier UDP tests used RUMlogNG 6.5.1 and MacDoppler 2.48. Compatibility with other versions and Apple Silicon has not been established.
+This release supplies an Intel macOS app. The 1.0.6 SAT-preserving preset switching was tested on macOS 15.7.3 with RUMlogNG 6.6.1 and an IC-9700 attached by USB. Earlier UDP tests used RUMlogNG 6.5.1 and MacDoppler 2.48. Compatibility with other versions and Apple Silicon has not been established.
 
 | Connection | Setting | Purpose |
 | --- | --- | --- |
 | MacDoppler → bridge | UDP `127.0.0.1:9932` | Incoming radio reports |
 | Bridge → RUMlogNG TRX2 | TCP `127.0.0.1:7400` | Frequency, mode and PTT-status queries |
-| Bridge ↔ RUMlogNG panel | macOS Accessibility | SAT, power, RX filter and feedback |
+| Bridge ↔ RUMlogNG panel | macOS Accessibility | VFOs, tone controls, receiver profile, power, filters and feedback |
 | RUMlogNG → IC-9700 | Existing CAT/USB connection | Sole radio connection |
 
 The bridge does not connect to the IC-9700 serial device. Do not configure a second direct MacDoppler CAT connection to the same radio. Existing services for other applications do not need their ports changed.
@@ -29,6 +29,8 @@ The downloadable app is ad-hoc signed, not Developer ID signed or notarized. A d
 
 ## 3. QO-100 operation
 
+SAT mode remains enabled so native NOR/REV manual dial tracking remains available. The bridge stops alternating panel polling while selecting Main/RX and Sub/TX explicitly. For each side it sends one ordinary frequency command and uses the selected-VFO mode buttons, then verifies that side before restoring the previous control view and polling. It avoids the Commander TX setters that failed to update the SAT Sub VFO with RUMlogNG 6.6.1.
+
 Click a row in the Operations list. This selects QO-100 authority, cancels pending MacDoppler work, and sends one batch containing the pair's RX frequency, TX frequency, RX mode and TX mode.
 
 After selection, the bridge checks feedback without retrying a frequency setter. A short amber verification state precedes confirmed operation. If feedback differs, the bridge reports that state and leaves manual tuning available. It does not keep enforcing the original dial frequencies.
@@ -48,9 +50,17 @@ These are **dial/IF frequencies**, not the QO-100 microwave frequencies. No tran
 
 Use **Settings → QO-100 pairs** to add or edit a name, both dial frequencies and both modes. Saving a pair does not tune the radio. The saved pair named Digital remains the launch default even if another source or pair was used last.
 
-For QO-100, USB and USB-D select **RX filter 1**; CW and CW-R select **RX filter 2**. TX filters are left unchanged.
+Both sources use **RX filter 1 for USB/USB-D** and **RX filter 2 for CW/CW-R**, including MacDoppler-imposed modes. TX filters are left unchanged.
+
+QO-100 RX has ATT enabled and internal/external preamps disabled. The receiver profile is applied when selecting a preset.
+
+### Virtual split
+
+Use the Virtual split selector: USB/USB-D offers **Off, +5, +10, +15 kHz**; CW/CW-R offers **Off, +1, +2, +3 kHz**. Enabling saves the actual TX frequency, including manual tuning since the preset. Each offset is relative to that same base; choices do not stack. **Off restores the saved TX base exactly**, even after further manual tuning. RX frequency, modes and filters are not changed. Release PTT before changing split. A new preset or MacDoppler selection clears split state and supplies its own pair. Split state is per session; normal startup still applies Digital.
 
 ## 4. MacDoppler operation
+
+Use **MacDoppler's tuning aids** during passes. The UDP driver does not supply native radio-dial tracking. The bridge uses explicit Main/RX and Sub/TX control with SAT on and holds alternating polling off across the stream. Returning to QO-100 restores the earlier polling setting.
 
 Click **MacDoppler** to give its reports control. The selected source button has a checkmark and colored appearance.
 
@@ -60,7 +70,11 @@ An existing report is used only if no more than eight seconds old. Otherwise, th
 
 Frequency-only corrections can continue during operator-keyed TX. A source or mode change waits for PTT release. The bridge has no PTT-on or PTT-off operation.
 
-CTCSS/tone fields are currently displayed in raw packets but not forwarded. Switching to MacDoppler does **not** automatically raise RF power in 1.0.5.
+TX CTCSS uses the TX-side Tone frequency selector and enable button; RX tone squelch is separate. A zero disables the corresponding function, while an omitted value leaves it alone. MacDoppler chooses the tone, including SO-50's 74.4/67.0 Hz sequence; the bridge does not schedule or key an opening transmission.
+
+MacDoppler RX uses ATT off and the internal preamp on, plus an external-preamp command for 70 cm downlinks. Three receiver-only macros are created in unused RUMlogNG slots; existing macros are preserved. The macros currently target default CI-V address A2.
+
+TX power defaults to **80% after the requested TX target verifies**, and again on a TX band/mode change. Frequency-only Doppler updates preserve later manual power adjustments. No increase is made while waiting for a valid packet on the previous QO-100 pair.
 
 ## 5. Return, pause and packet visibility
 
@@ -81,9 +95,9 @@ This guard operates on a reported software setting with feedback latency. It can
 ## 7. Feedback and known issues
 
 - The frequency line shows values read from RUMlogNG's IC-9700 panel, normally refreshed each second. It is separate from command history.
-- A requested value may briefly appear before a later CAT poll reports the previous frequency. Version 1.0.5 waits for stable feedback after selecting a QO-100 pair, but does not automatically retune when a mismatch remains.
+- A requested value may briefly appear before a later CAT poll reports the previous frequency. Version 1.0.6 waits for stable feedback after selecting a QO-100 pair, but does not automatically retune when a mismatch remains.
 - Missing frequencies say waiting. Old feedback is labelled stale. A TX mode omitted by RUMlogNG is not filled in from the requested mode.
-- **Toggle:** feedback reads in 1.0.5 automatically enable the RUMlogNG Toggle control. Manually turning Toggle off is not preserved. Removing that override is planned. Frequency/mode setters remain one-shot in QO-100; the overall feedback path is not strictly free of control actions because of this behavior.
+- **Toggle:** MacDoppler output holds alternating polling off and restores its prior choice on QO-100 return/app close. QO-100 feedback still enables Toggle. QO-100 has one tuning batch per preset selection and one TX-only command per explicit virtual-split choice.
 - Both full and compact Main/RX and Sub/TX group labels are supported. Frequency, mode and filter fields are identified by content. A placeholder mode can be read from the mode buttons only when their VFO is selected unambiguously; otherwise it remains unknown. Other control-panel changes can still break these controls.
 - Ad-hoc-signed executable updates can invalidate Accessibility permission. If access is denied despite an enabled switch, remove the app's entry, re-add the installed app and enable it again. The bridge retries after permission returns.
 

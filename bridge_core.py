@@ -20,7 +20,24 @@ MODES = ("USB", "USB-D", "LSB", "LSB-D", "CW", "CW-R", "FM", "AM", "RTTY", "RTTY
 MODE_ALIASES = {mode: mode for mode in MODES}
 MODE_ALIASES.update({"DATA-U": "USB-D", "USBD": "USB-D", "SSBD": "USB-D", "DATA-L": "LSB-D", "LSBD": "LSB-D", "CWR": "CW-R", "RTTYR": "RTTY-R"})
 WIRE_MODES = {"USB-D": "DATA-U", "LSB-D": "DATA-L"}
-QO_RX_FILTERS = {"CW": 2, "CW-R": 2, "USB-D": 1, "USB": 1}
+RX_FILTERS = {"CW": 2, "CW-R": 2, "USB-D": 1, "USB": 1}
+CTCSS_TONES = (67.0, 69.3, 71.9, 74.4, 77.0, 79.7, 82.5, 85.4, 88.5, 91.5,
+               94.8, 97.4, 100.0, 103.5, 107.2, 110.9, 114.8, 118.8, 123.0, 127.3,
+               131.8, 136.5, 141.3, 146.2, 151.4, 156.7, 159.8, 162.2, 165.5, 167.9,
+               171.3, 173.8, 177.3, 179.9, 183.5, 186.2, 189.9, 192.8, 196.6, 199.5,
+               203.5, 206.5, 210.7, 218.1, 225.7, 229.1, 233.6, 241.8, 250.3, 254.1)
+
+
+def tone_hz(value):
+    if value is None:
+        return None
+    try:
+        number = Decimal(str(value))
+        if not number.is_finite() or number not in {Decimal(str(t)) for t in (0.0, *CTCSS_TONES)}:
+            raise ValueError
+        return float(number)
+    except (InvalidOperation, ValueError):
+        raise ValueError("Use 0 to disable a tone, or a supported IC-9700 CTCSS frequency")
 
 
 def utc():
@@ -51,19 +68,50 @@ def mhz_text(hz):
     return format(Decimal(hz) / 1000000, ".6f")
 
 
+def dial_band(hz):
+    return 2 if hz < 200000000 else 70 if hz < 500000000 else 23
+
+
+def virtual_split_offsets(mode):
+    if mode in ("USB", "USB-D"):
+        return (0, 5000, 10000, 15000)
+    if mode in ("CW", "CW-R"):
+        return (0, 1000, 2000, 3000)
+    return (0,)
+
+
+def virtual_split_target(base_hz, offset_hz, mode):
+    if type(offset_hz) is not int or offset_hz not in virtual_split_offsets(mode):
+        raise ValueError("Choose a virtual split offset offered for the current TX mode")
+    target = base_hz + offset_hz
+    hz_from_mhz(Decimal(target) / 1000000)
+    return target
+
+
 @dataclass(frozen=True)
 class Pair:
     rx_hz: int
     tx_hz: int
     rx_mode: str
     tx_mode: str
+    tx_tone_hz: float = None
+    rx_tone_hz: float = None
 
     @classmethod
-    def from_values(cls, rx, tx, rx_mode, tx_mode):
-        return cls(hz_from_mhz(rx), hz_from_mhz(tx), normalize_mode(rx_mode), normalize_mode(tx_mode))
+    def from_values(cls, rx, tx, rx_mode, tx_mode, tx_tone_hz=None, rx_tone_hz=None):
+        pair = cls(hz_from_mhz(rx), hz_from_mhz(tx), normalize_mode(rx_mode), normalize_mode(tx_mode),
+                   tone_hz(tx_tone_hz), tone_hz(rx_tone_hz))
+        if pair.tx_tone_hz and pair.tx_mode != "FM" or pair.rx_tone_hz and pair.rx_mode != "FM":
+            raise ValueError("CTCSS requires FM on the corresponding TX or RX side")
+        return pair
 
     def view(self):
-        return {"rx_mhz": mhz_text(self.rx_hz), "tx_mhz": mhz_text(self.tx_hz), "rx_mode": self.rx_mode, "tx_mode": self.tx_mode}
+        result = {"rx_mhz": mhz_text(self.rx_hz), "tx_mhz": mhz_text(self.tx_hz), "rx_mode": self.rx_mode, "tx_mode": self.tx_mode}
+        for side in ("rx", "tx"):
+            value = getattr(self, side + "_tone_hz")
+            if value is not None:
+                result[side + "_tone_hz"] = value
+        return result
 
 
 def parse_radio_report(text):
@@ -83,7 +131,8 @@ def parse_radio_report(text):
     required = {"down mhz", "up mhz", "down mode", "up mode"}
     if not required.issubset(fields):
         raise ValueError("Radio report is missing uplink/downlink frequency or mode")
-    pair = Pair.from_values(fields["down mhz"], fields["up mhz"], fields["down mode"], fields["up mode"])
+    pair = Pair.from_values(fields["down mhz"], fields["up mhz"], fields["down mode"], fields["up mode"],
+                            fields.get("tone"), fields.get("ctone"))
     def band(hz):
         return 2 if hz < 200000000 else 70 if hz < 500000000 else 23
     if band(pair.rx_hz) == band(pair.tx_hz):
@@ -117,12 +166,13 @@ class PowerUnavailable(RuntimeError):
 
 
 class Transport:
-    """Only the four tuning setters are implemented; PTT-on is absent."""
+    """Tuning transport with optional selected-VFO control; PTT-on is absent."""
     ALLOWED = {"CmdSetFreq", "CmdSetTXFreq", "CmdSetMode", "CmdSetTXMode", "CmdSendTx", "CmdGetFreq", "CmdGetTXFreq", "CmdSendMode"}
 
-    def __init__(self, log, host="127.0.0.1", port=7400, ensure_sat=None):
+    def __init__(self, log, host="127.0.0.1", port=7400, ensure_sat=None, pair_writer=None):
         self.log, self.host, self.port = log, host, port
         self.ensure_sat = ensure_sat
+        self.pair_writer = pair_writer
         self.last_pair = None
 
     def command(self, name, params="", reply=None):
@@ -153,7 +203,11 @@ class Transport:
 
     def apply(self, pair, force=False):
         old = None if force else self.last_pair
-        changing_mode = old is None or (old.rx_mode, old.tx_mode) != (pair.rx_mode, pair.tx_mode)
+        changing_mode = old is None or (old.rx_mode, old.tx_mode, old.tx_tone_hz, old.rx_tone_hz,
+                                        dial_band(old.rx_hz),dial_band(old.tx_hz)) != (
+            pair.rx_mode, pair.tx_mode, pair.tx_tone_hz, pair.rx_tone_hz,dial_band(pair.rx_hz),dial_band(pair.tx_hz))
+        if self.pair_writer is None and any(t is not None for t in (pair.tx_tone_hz, pair.rx_tone_hz)):
+            raise RuntimeError("MacDoppler tone control is unavailable; tuning is blocked")
         # Frequency-only Doppler updates may continue during operator-keyed TX.
         # Changing source/bands/modes waits until the operator releases PTT.
         if changing_mode:
@@ -161,6 +215,9 @@ class Transport:
                 raise BusyRadio("Release PTT before changing source or operating modes")
         if force and self.ensure_sat:
             self.ensure_sat()
+        if self.pair_writer and self.pair_writer(pair, old, force):
+            self.last_pair = pair
+            return
         for attr, cmd in (("rx_hz", "CmdSetFreq"), ("tx_hz", "CmdSetTXFreq")):
             if old is None or getattr(old, attr) != getattr(pair, attr):
                 khz = format(Decimal(getattr(pair, attr)) / 1000, ".3f")
@@ -172,7 +229,7 @@ class Transport:
         self.last_pair = pair
 
 class Bridge:
-    def __init__(self, transport_factory=None, journal=None, freshness=8.0, power_guard=None, rx_filter=None, radio_reader=None, verify_qo=False):
+    def __init__(self, transport_factory=None, journal=None, freshness=8.0, power_guard=None, rx_filter=None, radio_reader=None, verify_qo=False, split_controller=None):
         self.lock = threading.RLock()
         # Source changes and writes share this lock. On return from a source
         # switch, no old source can still write, including an in-flight update.
@@ -211,6 +268,11 @@ class Bridge:
         self.radio_error = ""
         self.rx_filter = rx_filter
         self.rx_filter_number = None
+        self.split_controller = split_controller
+        self.split_base_tx_hz = None
+        self.split_offset_hz = 0
+        self.split_error = ""
+        self.split_pending_offset_hz = None
         self.freshness = freshness
         self.events = deque(maxlen=160)
         self.journal = Path(journal) if journal else None
@@ -298,6 +360,7 @@ class Bridge:
                     return
                 self.source, self.enabled = "qo100", True
                 self.qo_pair, self.qo_name = pair, name
+                self._clear_virtual_split()
                 self.qo_verified = False
                 self.pending = (self.epoch, "qo100", pair, time.monotonic(), True)
                 self.error = ""
@@ -312,6 +375,7 @@ class Bridge:
                 if token != self.epoch:
                     return
                 self.source, self.enabled = "macdoppler", True
+                self._clear_virtual_split()
                 self.pending = None
                 self.error = ""
                 self.status = "Waiting for a fresh MacDoppler radio packet"
@@ -320,6 +384,58 @@ class Bridge:
                     self.pending = (self.epoch, "macdoppler", self.latest, self.latest_at, True)
                     self.wake.set()
             self.log("source_selected", source="macdoppler", epoch=self.epoch)
+
+    def _clear_virtual_split(self):
+        # The newly selected source/preset supplies the next TX target.
+        # Do not send a separate restore of the previous source's base.
+        self.split_base_tx_hz, self.split_offset_hz, self.split_error = None, 0, ""
+        self.split_pending_offset_hz = None
+
+    def set_virtual_split(self, offset_hz):
+        if type(offset_hz) is not int or offset_hz not in (0,1000,2000,3000,5000,10000,15000):
+            raise ValueError("Invalid virtual split offset")
+        with self.dispatch:
+            with self.lock:
+                if self.source != "qo100" or self.qo_pair is None:
+                    raise RuntimeError("Virtual split is available in QO-100 only")
+                if offset_hz and (not self.enabled or self.pending is not None or self.applied_epoch != self.epoch):
+                    raise RuntimeError("Apply the QO-100 pair before enabling virtual split")
+                if offset_hz == 0 and self.split_base_tx_hz is None:
+                    self.split_error = ""
+                    return
+                if self.split_controller is None:
+                    raise RuntimeError("TX split control is unavailable")
+                epoch, base = self.epoch, self.split_base_tx_hz
+                self.split_pending_offset_hz = offset_hz
+            def remember_base(hz):
+                with self.lock:
+                    if epoch != self.epoch or self.source != "qo100":
+                        raise RuntimeError("Virtual split cancelled by a source change")
+                    # Retain the recovery frequency even if verification
+                    # fails after the TX-only command has been sent.
+                    if self.split_base_tx_hz is None:
+                        self.split_base_tx_hz = hz
+            try:
+                self._check_power()
+                proof = self.split_controller(base, offset_hz, remember_base)
+                self._check_power()
+                with self.lock:
+                    if epoch != self.epoch or self.source != "qo100":
+                        return
+                    self.split_offset_hz, self.split_error = offset_hz, ""
+                    if offset_hz == 0:
+                        self.split_base_tx_hz = None
+                self._read_radio()
+                self.log("virtual_split_applied", offset_hz=offset_hz, **proof)
+            except Exception as error:
+                with self.lock:
+                    self.split_error = str(error)
+                self.log("virtual_split_error", error=str(error), base_tx_hz=self.split_base_tx_hz)
+                raise
+            finally:
+                with self.lock:
+                    if epoch == self.epoch:
+                        self.split_pending_offset_hz = None
 
     def pause(self):
         token = self._begin_switch("Pausing output")
@@ -341,6 +457,7 @@ class Bridge:
             self.power_recovery_apply = False
             self.enabled = False
             self.pending = None
+            self.split_pending_offset_hz = None
             self.status = status
             return self.epoch
 
@@ -361,6 +478,9 @@ class Bridge:
                     "radio_age": time.monotonic() - self.radio_seen_at if self.radio_seen_at is not None else None,
                     "radio_error": self.radio_error,
                     "rx_filter_number": self.rx_filter_number,
+                    "virtual_split": {"offset_hz":self.split_offset_hz,"base_tx_hz":self.split_base_tx_hz,"error":self.split_error,
+                                      "pending_offset_hz":self.split_pending_offset_hz,
+                                      "available":self.source=='qo100' and self.enabled and self.applied_epoch==self.epoch and self.pending is None},
                     "power_cap_active": self.source == "qo100" and self.qo_pair is not None,
                     "input_error": self.input_error,
                     "packets": [e for e in self.events if e["kind"] in ("udp_received", "udp_rejected", "udp_other") and "packet" in e][-30:],
@@ -531,9 +651,9 @@ class Bridge:
                         continue
                 commands_sent = False
                 try:
-                    filter_number = QO_RX_FILTERS.get(pair.rx_mode) if source == "qo100" else None
+                    filter_number = RX_FILTERS.get(pair.rx_mode)
                     if filter_number is not None and self.rx_filter is None:
-                        raise RuntimeError("QO-100 RX filter control is unavailable; tuning is blocked")
+                        raise RuntimeError("RX filter control is unavailable; tuning is blocked")
                     if source == "qo100":
                         self._check_power(force=True)
                     self.transport.apply(pair, force=force or self.transport.last_pair is None)
@@ -543,7 +663,7 @@ class Bridge:
                     confirmed = True
                     if filter_number is not None:
                         if self.rx_filter(pair.rx_mode, filter_number) != filter_number:
-                            raise RuntimeError("QO-100 RX filter did not verify")
+                            raise RuntimeError("RX filter did not verify")
                     if source == "qo100":
                         # A new TX band or mode may recall a different power.
                         # Do not show QO-100 active until the cap is rechecked.

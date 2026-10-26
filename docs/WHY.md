@@ -4,7 +4,7 @@
 
 The starting point was an existing station: RUMlogNG already controlled the IC-9700 as **TRX2**, and I wanted to keep it that way. RUMlogNG should remain the only application connected to the radio's CAT/USB port.
 
-The bridge therefore sits upstream of RUMlogNG. It receives MacDoppler's radio reports over UDP, chooses whether those reports have authority, and sends the selected frequencies and modes to RUMlogNG's TRX2 TCP server. RUMlogNG handles the radio connection. The bridge also uses RUMlogNG's control panel for SAT, RF power, the RX filter, and radio readback.
+The bridge therefore sits upstream of RUMlogNG. It receives MacDoppler's radio reports over UDP, chooses whether those reports have authority, and sends the selected frequencies and modes to RUMlogNG's TRX2 TCP server. RUMlogNG handles the radio connection. The bridge also uses RUMlogNG's control panel for selected VFOs, tones, receiver settings, SAT, RF power, RX filters and radio readback.
 
 This preserves the logging/CAT arrangement without making the operator reconnect the radio or move serial-port ownership between applications.
 
@@ -44,4 +44,4 @@ Since version 1.0.4, the bridge checks for stable readback after a QO-100 select
 
 ## Extend later, without changing today's operation
 
-The current version is being used for experience and feedback. A future Terrestrial mode should offer the same simple selection model for repeaters and simplex voice/data channels. Planned power defaults are 80% for MacDoppler and terrestrial operation, with the QO-100 ceiling remaining 5%. Those features are described in the [roadmap](ROADMAP.md); they are not part of 1.0.5.
+The current version is being used for experience and feedback. A future Terrestrial mode should offer the same simple selection model for repeaters and simplex voice/data channels. MacDoppler now applies an 80% TX default on entry or TX band/mode changes; QO-100 keeps its 5% ceiling. Terrestrial profiles and their power default remain in the [roadmap](ROADMAP.md).

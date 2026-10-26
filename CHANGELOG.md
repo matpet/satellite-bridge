@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.0.6 - release candidate, 2026-10-26
+
+Selected-VFO tracking repair, receiver profiles, tones and QO-100 virtual split; build 10.
+
+- Keep Main/RX and Sub/TX explicit, using ordinary frequency setters and panel mode/Data controls with SAT enabled.
+- Hold alternating polling off during MacDoppler updates, including background feedback. Restore it on QO-100 return/app close.
+- Apply RX filter 2 for CW/CW-R and filter 1 for USB/USB-D in both sources, without changing the TX filter.
+- Forward TX CTCSS through the TX Tone popup/button; keep RX TSQL separate. Wait for Cocoa menus and acquire/restore foreground focus when needed.
+- Apply QO-100 RX ATT with preamps off; LEO RX internal preamp with ATT off and external 70 cm activation. Use three validated receiver-only macros in unused RUMlogNG slots.
+- Apply MacDoppler's 80% TX default after target verification, on entry or TX band/mode changes.
+- Add TX-only virtual split: USB/USB-D +5/+10/+15 kHz; CW/CW-R +1/+2/+3 kHz. Save the actual starting TX, avoid stacking, and restore that base on Off.
+- Preserve QO-100 manual tuning, its one-shot preset selection, RX-only filtering and 5% ceiling.
+
+118 simulated regressions pass. A controlled real-radio UDP replay verified 13 updates, tone transitions, RX filters, receiver profiles, 80% defaults, both split ranges and manual-tuning preservation. No over-the-air QSO or independent external-amplifier measurement is claimed. Installed-build acceptance is recorded separately.
+
 ## 1.0.5 - 2026-10-26
 
 RUMlogNG IC-9700 control-panel compatibility repair, build 7.
