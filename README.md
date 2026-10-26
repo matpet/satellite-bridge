@@ -8,9 +8,9 @@ A small macOS app for keeping QO-100 operation and MacDoppler-controlled LEO ope
 
 [Download the app](https://github.com/matpet/satellite-bridge/releases/tag/v1.0.6) · [User guide](docs/USER-GUIDE.md) · [Why this app exists](docs/WHY.md) · [PDF guide](output/pdf/Satellite-Bridge-Guide-1.0.6.pdf) · [Planned features](docs/ROADMAP.md)
 
-![Satellite Bridge 1.0.4 showing QO-100 Digital selected, all four saved pairs, independent RX/TX readback, reported RF power 4%, and MacDoppler blocked](docs/images/satellite-bridge-1.0.4.png)
+![Satellite Bridge 1.0.6 showing QO-100 CW selected, all four saved pairs, virtual split Off and +1/+2/+3 kHz choices, RX filter 2, and reported RF power 4%](docs/images/satellite-bridge-1.0.6.png)
 
-*Actual app window on the original station. The packet feed is visible; no MacDoppler packets were arriving when this screenshot was taken.*
+*Actual version 1.0.6 build 10 on the original station: QO-100 CW, split Off, RX filter 2 and 4% reported power. The packet feed is open but empty in this capture; counters include earlier messages.*
 
 Version 1.0.6 repairs selected-VFO control with RUMlogNG 6.6.1 and adds panel-based TX CTCSS, source-specific receiver/power settings and QO-100 virtual split. SAT remains enabled. QO-100 accepts later radio-dial tuning; MacDoppler operation uses its own tuning aids and UDP reports. After an update, macOS may require removing and re-adding Satellite Bridge in Accessibility. See the [changelog](CHANGELOG.md).
 

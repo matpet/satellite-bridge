@@ -133,14 +133,14 @@ def main():
     section("Independent frequencies and converter protection")
     text("Downlink controls RX; uplink controls TX. Neither is calculated from the other. The QO-100 TX output feeds a converter, so this mode requires a maximum RF power setting of <b>5%</b>. The guard is software with feedback latency, not a hardware RF limiter.")
 
-    page("Operations at a glance", "An actual screenshot of version 1.0.4 on the original station.")
-    image = ImageReader(str(ROOT / "docs/images/satellite-bridge-1.0.4.png"))
+    page("Operations at a glance", "An actual screenshot of version 1.0.6 build 10 on the original station.")
+    image = ImageReader(str(ROOT / "docs/images/satellite-bridge-1.0.6.png"))
     iw, ih = image.getSize()
     image_height = WIDTH * ih / iw
     c.drawImage(image, LEFT, y - image_height, width=WIDTH, height=image_height, mask="auto")
     y -= image_height + 16
-    text("QO-100 Digital is selected, all four saved pairs remain available, and the readback shows RX 433.540000 MHz / TX 144.040000 MHz with power at 4%. The source button and banner identify QO-100 authority; MacDoppler is blocked.")
-    text("The packet feed is open. No MacDoppler packets were arriving at capture time, so the screenshot is not evidence of an active UDP test. Separate live tests are summarized later in this guide.", "small")
+    text("QO-100 CW is active at RX 433.512000 MHz and TX 144.012000 MHz, both CW. RX filter 2 and 4% reported power are visible. All four saved pairs and the CW virtual-split choices Off, +1, +2 and +3 kHz fit in the Operations window.")
+    text("Split is Off. The packet feed is open but empty in this capture; counters include earlier messages. The frequency line shows readback from RUMlogNG.", "small")
 
     page("Install and connect", "Intel app with bundled Python/Tk; no Terminal needed for normal operation.")
     text("Download the Intel ZIP from the GitHub release, extract it, and copy <b>Satellite Bridge.app</b> into an Applications folder. Add it to the Dock if desired.")

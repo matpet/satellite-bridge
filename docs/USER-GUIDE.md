@@ -58,6 +58,10 @@ QO-100 RX has ATT enabled and internal/external preamps disabled. The receiver p
 
 Use the Virtual split selector: USB/USB-D offers **Off, +5, +10, +15 kHz**; CW/CW-R offers **Off, +1, +2, +3 kHz**. Enabling saves the actual TX frequency, including manual tuning since the preset. Each offset is relative to that same base; choices do not stack. **Off restores the saved TX base exactly**, even after further manual tuning. RX frequency, modes and filters are not changed. Release PTT before changing split. A new preset or MacDoppler selection clears split state and supplies its own pair. Split state is per session; normal startup still applies Digital.
 
+![Satellite Bridge 1.0.6 Operations window with QO-100 CW selected, RX filter 2 and the +1/+2/+3 kHz virtual-split controls](images/satellite-bridge-1.0.6.png)
+
+*Version 1.0.6 build 10: CW selected, virtual split Off and reported power 4%.*
+
 ## 4. MacDoppler operation
 
 Use **MacDoppler's tuning aids** during passes. The UDP driver does not supply native radio-dial tracking. The bridge uses explicit Main/RX and Sub/TX control with SAT on and holds alternating polling off across the stream. Returning to QO-100 restores the earlier polling setting.
